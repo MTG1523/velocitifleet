@@ -1,0 +1,13 @@
+{
+  "name": "velocitifleet-gps-simulator",
+  "version": "1.0.0",
+  "description": "GPS coordinate simulator for VelocitiFleet — simulates 4G LTE telemetry modules",
+  "main": "simulate.js",
+  "scripts": {
+    "start": "node simulate.js",
+    "multi": "node simulate-multi.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

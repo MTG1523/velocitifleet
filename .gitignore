@@ -1,0 +1,56 @@
+# ── Java / Maven ────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.log
+*.ctxt
+.mtj.tmp/
+hs_err_pid*
+replay_pid*
+
+# ── Spring Boot ──────────────────────────────────
+backend/src/main/resources/application-local.properties
+
+# ── IDE ──────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Node / Next.js ───────────────────────────────
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+# ── Simulator ────────────────────────────────────
+simulator/node_modules/
+
+# ── Environment / Secrets ────────────────────────
+.env
+.env.local
+.env.production
+.env*.local
+# (keep .env.example files)
+
+# ── OS ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Maven wrapper ────────────────────────────────
+!backend/.mvn/wrapper/maven-wrapper.jar
+!backend/.mvn/wrapper/maven-wrapper.properties
