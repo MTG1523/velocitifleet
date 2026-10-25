@@ -18,16 +18,24 @@ function getAdminApp(): App {
     return getApps()[0];
   }
 
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+  const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = rawKey && !rawKey.includes('PASTE_YOUR_KEY_HERE')
+    ? rawKey.replace(/\\n/g, '\n')
     : undefined;
 
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+  if (projectId && clientEmail && privateKey) {
+    return initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+    });
+  }
+
+  // Fallback initialization if credentials haven't been provided yet
   return initializeApp({
-    credential: cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey,
-    }),
+    projectId: projectId || 'demo-project',
     databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
   });
 }
