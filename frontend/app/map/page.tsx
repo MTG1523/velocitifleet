@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { useWebSocket } from '@/hooks/useVehicleTracker';
 
 // Dynamically import the map (Leaflet needs window — must be CSR only)
 const VehicleMap = dynamic(() => import('@/components/VehicleMap'), {
