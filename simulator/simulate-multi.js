@@ -1,16 +1,39 @@
 /**
  * VelocitiFleet Multi-Vehicle GPS Simulator — simulate-multi.js
  *
- * Simulates multiple vehicles simultaneously by spawning one WebSocket
- * connection per vehicle. Great for testing the fleet map view.
+ * Simulates multiple vehicles simultaneously by publishing updates directly
+ * to Firebase Realtime Database at /telemetry/{vehicleId}.
  *
  * Usage: node simulate-multi.js
  */
 
-const WebSocket = require('ws');
+require('dotenv').config();
+const { initializeApp, getApps, cert } = require('firebase-admin/app');
+const { getDatabase } = require('firebase-admin/database');
 
-const WS_URL         = process.env.WS_URL || 'ws://localhost:8080/ws/location';
+// ── Firebase Admin Init ───────────────────────────────────────
+function getAdminDatabase() {
+  if (getApps().length === 0) {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      : undefined;
+
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const databaseURL = process.env.FIREBASE_DATABASE_URL || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
+
+    const appOptions = { databaseURL };
+    if (projectId && clientEmail && privateKey) {
+      appOptions.credential = cert({ projectId, clientEmail, privateKey });
+    }
+
+    initializeApp(appOptions);
+  }
+  return getDatabase();
+}
+
 const UPDATE_INTERVAL = 2000;
+const DATABASE_URL    = process.env.FIREBASE_DATABASE_URL || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || '(default)';
 
 // Configure which vehicles to simulate (id + starting coordinates)
 const VEHICLES = [
@@ -24,7 +47,7 @@ function timestamp() {
   return new Date().toLocaleTimeString('en-US', { hour12: false });
 }
 
-function simulateVehicle(vehicle) {
+function simulateVehicle(db, vehicle) {
   let { id, lat, lng, heading } = vehicle;
   let speed = 25 + Math.random() * 20;
 
@@ -41,44 +64,34 @@ function simulateVehicle(vehicle) {
       longitude: parseFloat(lng.toFixed(6)),
       speed:     parseFloat(speed.toFixed(1)),
       heading:   Math.round(heading),
+      updatedAt: Date.now(),
     };
   }
 
-  function connect() {
-    const ws = new WebSocket(WS_URL);
-
-    ws.on('open', () => {
-      console.log(`[${timestamp()}] [V${id}] ✅ Connected`);
-
-      const intervalId = setInterval(() => {
-        if (ws.readyState !== WebSocket.OPEN) { clearInterval(intervalId); return; }
-        const data = nextPos();
-        ws.send(JSON.stringify(data));
+  setInterval(() => {
+    const data = nextPos();
+    db.ref(`/telemetry/${id}`).set(data)
+      .then(() => {
         console.log(`[${timestamp()}] [V${id}] 📡 lat=${data.latitude}, lng=${data.longitude}, spd=${data.speed}km/h`);
-      }, UPDATE_INTERVAL);
-
-      ws.on('close', () => {
-        clearInterval(intervalId);
-        console.log(`[${timestamp()}] [V${id}] 🔌 Disconnected. Reconnecting in 5s...`);
-        setTimeout(connect, 5000);
+      })
+      .catch((err) => {
+        console.error(`[${timestamp()}] [V${id}] ❌ Error: ${err.message}`);
       });
-    });
-
-    ws.on('error', (err) => {
-      console.error(`[${timestamp()}] [V${id}] ❌ ${err.message}`);
-    });
-  }
-
-  // Stagger connection start times to avoid thundering herd
-  setTimeout(connect, id * 300);
+  }, UPDATE_INTERVAL);
 }
 
 console.log('╔═══════════════════════════════════════════════╗');
-console.log('║  🚗🚗🚗  VelocitiFleet Multi-Vehicle Sim      ║');
+console.log('║  🚗🚗🚗  VelocitiFleet Multi-Vehicle Sim (RTDB)║');
 console.log('╚═══════════════════════════════════════════════╝');
-console.log(`Simulating ${VEHICLES.length} vehicles on ${WS_URL}\n`);
+console.log(`Simulating ${VEHICLES.length} vehicles on ${DATABASE_URL}\n`);
 
-VEHICLES.forEach(simulateVehicle);
+let db;
+try {
+  db = getAdminDatabase();
+  VEHICLES.forEach(v => simulateVehicle(db, v));
+} catch (err) {
+  console.error('❌ Failed to initialize Firebase simulator:', err.message);
+}
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Simulation stopped.');
