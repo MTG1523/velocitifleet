@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 interface Fleet {
   id: number; make: string; model: string; type: string;

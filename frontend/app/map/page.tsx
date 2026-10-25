@@ -15,7 +15,7 @@ const VehicleMap = dynamic(() => import('@/components/VehicleMap'), {
   ),
 });
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 interface Fleet {
   id: number; make: string; model: string; type: string;
