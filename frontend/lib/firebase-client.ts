@@ -4,13 +4,15 @@
  * firebase-client.ts — Client-side Firebase SDK singleton.
  *
  * Initialises the Firebase app once using getApps() guard.
- * Exports clientDb (Realtime Database) for use in browser hooks.
+ * Exports clientDb (Realtime Database), clientAuth (Firebase Auth),
+ * and googleProvider for Google Sign-In.
  *
  * ⚠️  Only import this file from client components / hooks ('use client').
  */
 
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getDatabase, type Database } from 'firebase/database';
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,6 +24,16 @@ const firebaseConfig = {
   databaseURL:       process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
 };
 
+export function isFirebaseAuthConfigured(): boolean {
+  const key = firebaseConfig.apiKey;
+  return Boolean(
+    key &&
+    key.length > 10 &&
+    !key.includes('your-') &&
+    !key.includes('placeholder')
+  );
+}
+
 function getClientApp(): FirebaseApp {
   if (getApps().length > 0) {
     return getApps()[0];
@@ -31,3 +43,12 @@ function getClientApp(): FirebaseApp {
 
 /** Client-side Firebase Realtime Database instance. */
 export const clientDb: Database = getDatabase(getClientApp());
+
+/** Client-side Firebase Auth instance (null if API key unconfigured). */
+export const clientAuth: Auth | null = isFirebaseAuthConfigured()
+  ? getAuth(getClientApp())
+  : null;
+
+/** Google Auth Provider for popup sign-in. */
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
