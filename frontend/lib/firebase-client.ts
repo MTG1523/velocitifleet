@@ -28,9 +28,10 @@ export function isFirebaseAuthConfigured(): boolean {
   const key = firebaseConfig.apiKey;
   return Boolean(
     key &&
-    key.length > 10 &&
-    !key.includes('your-') &&
-    !key.includes('placeholder')
+    key.startsWith('AIza') &&
+    key.length >= 30 &&
+    !key.toLowerCase().includes('your') &&
+    !key.toLowerCase().includes('placeholder')
   );
 }
 

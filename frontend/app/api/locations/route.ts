@@ -42,3 +42,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to ingest location' }, { status: 500 });
   }
 }
+
+/** GET /api/locations — all latest vehicle locations */
+export async function GET() {
+  try {
+    const rtdb = getDatabase();
+    const snap = await rtdb.ref('/telemetry').get();
+    return NextResponse.json(snap.exists() ? snap.val() : {});
+  } catch (err) {
+    console.error('[GET /api/locations]', err);
+    return NextResponse.json({});
+  }
+}
+

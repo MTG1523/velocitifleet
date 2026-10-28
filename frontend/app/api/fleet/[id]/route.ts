@@ -79,3 +79,37 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Failed to delete vehicle' }, { status: 500 });
   }
 }
+
+/** PATCH /api/fleet/[id] — partial update (e.g. status) */
+export async function PATCH(req: NextRequest, { params }: Params) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const queryStatus = searchParams.get('status');
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Body may be empty if status is in query param
+    }
+    const status = queryStatus || body.status;
+    const db  = getFirestore();
+    const ref = db.collection('fleet').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+    }
+    const update: Record<string, unknown> = {};
+    if (status) update.status = status;
+    for (const key of ['make', 'model', 'type', 'registration', 'year', 'dailyRate', 'imageUrl']) {
+      if (body[key] !== undefined) update[key] = body[key];
+    }
+    await ref.update(update);
+    const updated = await ref.get();
+    return NextResponse.json(docToFleet(updated));
+  } catch (err) {
+    console.error('[PATCH /api/fleet/[id]]', err);
+    return NextResponse.json({ error: 'Failed to update vehicle' }, { status: 500 });
+  }
+}
+

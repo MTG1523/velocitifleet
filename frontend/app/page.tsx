@@ -50,22 +50,27 @@ export default function DashboardPage() {
   async function loadAll() {
     try {
       const [f, u, r] = await Promise.all([
-        fetch(`${API}/fleet`).then(r=>r.json()),
-        fetch(`${API}/users`).then(r=>r.json()),
-        fetch(`${API}/rentals`).then(r=>r.json()),
+        fetch(`${API}/fleet`).then(res => res.ok ? res.json() : []).catch(() => []),
+        fetch(`${API}/users`).then(res => res.ok ? res.json() : []).catch(() => []),
+        fetch(`${API}/rentals`).then(res => res.ok ? res.json() : []).catch(() => []),
       ]);
-      setFleet(f); setUsers(u); setRentals(r);
+      setFleet(Array.isArray(f) ? f : []);
+      setUsers(Array.isArray(u) ? u : []);
+      setRentals(Array.isArray(r) ? r : []);
     } catch { showToast('Failed to load data — is the backend running?', 'error'); }
     finally { setLoading(false); }
   }
 
   useEffect(() => { loadAll(); }, []);
 
+  const fleetList = Array.isArray(fleet) ? fleet : [];
+  const rentalsList = Array.isArray(rentals) ? rentals : [];
+
   const stats = {
-    total:       fleet.length,
-    available:   fleet.filter(f => f.status === 'AVAILABLE').length,
-    rented:      fleet.filter(f => f.status === 'RENTED').length,
-    maintenance: fleet.filter(f => f.status === 'MAINTENANCE').length,
+    total:       fleetList.length,
+    available:   fleetList.filter(f => f.status === 'AVAILABLE').length,
+    rented:      fleetList.filter(f => f.status === 'RENTED').length,
+    maintenance: fleetList.filter(f => f.status === 'MAINTENANCE').length,
   };
 
   async function handleRegister(e: React.FormEvent) {
@@ -91,7 +96,7 @@ export default function DashboardPage() {
     try {
       const res = await fetch(`${API}/rentals/checkout`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ userId: parseInt(rentForm.userId), fleetId: rentTarget.id }),
+        body: JSON.stringify({ userId: String(rentForm.userId), fleetId: String(rentTarget.id) }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -106,7 +111,7 @@ export default function DashboardPage() {
     }
   }
 
-  const activeRentals = rentals.filter(r => r.status === 'ACTIVE').slice(0, 5);
+  const activeRentals = rentalsList.filter(r => r.status === 'ACTIVE').slice(0, 5);
 
   if (loading) return (
     <div className="loading-center" style={{ minHeight: 'calc(100vh - 64px)' }}>
@@ -121,19 +126,19 @@ export default function DashboardPage() {
 
         {/* ── Hero ─────────────────────────────────────────── */}
         <div className="page-hero">
-          <div className="page-hero-badge">⚡ Fleet Management Platform</div>
+          <div className="page-hero-badge">✦ PREMIER FLEET TELEMETRY & OPERATIONS</div>
           <h1 className="page-title">
-            Your Fleet,<br /><span>Fully in Control</span>
+            Executive Fleet,<br /><span>Precision in Motion</span>
           </h1>
           <p className="page-desc">
-            Manage vehicles, process rentals, and track your entire fleet in real-time.
+            Next-generation fleet operations, luxury vehicle rentals, and real-time live GPS telemetry tracking.
           </p>
-          <div style={{ display:'flex', gap:'12px', marginTop:'20px' }}>
+          <div style={{ display:'flex', gap:'12px', marginTop:'22px', flexWrap:'wrap' }}>
             <button className="btn btn-primary" onClick={() => setShowRegister(true)}>
-              + Register User
+              + Register Client
             </button>
             <Link href="/map" className="btn btn-ghost">
-              🗺️ Live Map
+              🗺️ Live Radar Map
             </Link>
           </div>
         </div>
@@ -141,10 +146,10 @@ export default function DashboardPage() {
         {/* ── Stats ─────────────────────────────────────────── */}
         <div className="stats-grid">
           {[
-            { icon:'🚗', label:'Total Fleet',   value:stats.total,       color:'#00d4ff', stat:'--stat-color:#00d4ff' },
-            { icon:'✅', label:'Available',     value:stats.available,   color:'#00ff88', stat:'--stat-color:#00ff88' },
-            { icon:'🔑', label:'Rented',        value:stats.rented,      color:'#a855f7', stat:'--stat-color:#a855f7' },
-            { icon:'🔧', label:'Maintenance',   value:stats.maintenance, color:'#ff8c42', stat:'--stat-color:#ff8c42' },
+            { icon:'🏎️', label:'Total Fleet',   value:stats.total,       color:'#d4af37', stat:'--stat-color:#d4af37' },
+            { icon:'✨', label:'Available',     value:stats.available,   color:'#34d399', stat:'--stat-color:#34d399' },
+            { icon:'🔑', label:'Active Rentals',value:stats.rented,      color:'#f7e199', stat:'--stat-color:#f7e199' },
+            { icon:'⚙️', label:'Service',       value:stats.maintenance, color:'#fbbf24', stat:'--stat-color:#fbbf24' },
           ].map(s => (
             <div key={s.label} className="stat-card" style={{ ['--stat-color' as string]: s.color }}>
               <div className="stat-icon">{s.icon}</div>
@@ -193,7 +198,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="vehicle-meta-item">
                         <span className="vehicle-meta-label">Rate/Day</span>
-                        <span className="vehicle-meta-value" style={{ color:'#00d4ff' }}>
+                        <span className="vehicle-meta-value" style={{ color:'var(--accent-gold)' }}>
                           ${v.dailyRate?.toFixed(2) ?? '—'}
                         </span>
                       </div>

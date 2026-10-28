@@ -13,7 +13,7 @@ const TYPE_EMOJI: Record<string, string> = {
   Car:'🚗', Scooter:'🛵', Motorcycle:'🏍️', Truck:'🚛', Van:'🚐',
 };
 const STATUS_COLORS: Record<string, string> = {
-  AVAILABLE: '#00ff88', RENTED: '#00d4ff', MAINTENANCE: '#ff8c42',
+  AVAILABLE: '#34d399', RENTED: '#d4af37', MAINTENANCE: '#fbbf24',
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -37,8 +37,9 @@ export default function FleetPage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await fetch(`${API}/fleet`).then(r => r.json());
-      setFleet(data);
+      const res = await fetch(`${API}/fleet`);
+      const data = res.ok ? await res.json() : [];
+      setFleet(Array.isArray(data) ? data : []);
     } catch { showToast('Failed to load fleet', 'error'); }
     finally  { setLoading(false); }
   }, []);
@@ -86,7 +87,8 @@ export default function FleetPage() {
     }
   }
 
-  const displayed = filter === 'ALL' ? fleet : fleet.filter(f => f.status === filter);
+  const fleetList = Array.isArray(fleet) ? fleet : [];
+  const displayed = filter === 'ALL' ? fleetList : fleetList.filter(f => f.status === filter);
 
   if (loading) return (
     <div className="loading-center" style={{ minHeight:'calc(100vh - 64px)' }}>
@@ -100,9 +102,9 @@ export default function FleetPage() {
       <div className="container">
 
         <div className="page-hero">
-          <div className="page-hero-badge">🚗 Fleet Management</div>
-          <h1 className="page-title">Manage Your <span>Fleet</span></h1>
-          <p className="page-desc">Add, update, and monitor all vehicles in your fleet.</p>
+          <div className="page-hero-badge">✦ PREMIER FLEET ROSTER</div>
+          <h1 className="page-title">Executive <span>Fleet Inventory</span></h1>
+          <p className="page-desc">Oversee, configure, and monitor luxury vehicles across your global fleet.</p>
         </div>
 
         {/* ── Controls ─────────────────────────────────── */}
@@ -110,10 +112,10 @@ export default function FleetPage() {
           <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add Vehicle</button>
           {['ALL','AVAILABLE','RENTED','MAINTENANCE'].map(s => (
             <button key={s} className="btn btn-ghost btn-sm"
-              style={filter===s ? { borderColor:'var(--accent-blue)', color:'var(--accent-blue)' } : {}}
+              style={filter===s ? { borderColor:'var(--accent-gold)', color:'var(--accent-gold-light)', background:'rgba(212,175,55,0.14)', boxShadow:'0 0 12px rgba(212,175,55,0.2)' } : {}}
               onClick={() => setFilter(s)}>{s}</button>
           ))}
-          <span style={{ marginLeft:'auto', fontSize:'0.8rem', color:'var(--text-muted)' }}>
+          <span style={{ marginLeft:'auto', fontSize:'0.82rem', color:'var(--accent-gold-light)', fontWeight:600 }}>
             {displayed.length} vehicles
           </span>
         </div>

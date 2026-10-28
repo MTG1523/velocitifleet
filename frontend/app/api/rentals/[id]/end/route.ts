@@ -37,10 +37,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
       }
 
       const dailyRate: number  = fleetDoc.data()!.dailyRate ?? 0;
-      const startMs: number    = rental.startTime.toDate().getTime();
+      const startMs: number    = typeof rental.startTime?.toDate === 'function'
+        ? rental.startTime.toDate().getTime()
+        : (rental.startTime ? new Date(rental.startTime).getTime() : Date.now());
       const endMs: number      = Date.now();
-      const diffMs: number     = endMs - startMs;
-      const days: number       = Math.ceil(diffMs / 86_400_000);
+      const diffMs: number     = Math.max(0, endMs - startMs);
+      const days: number       = Math.max(1, Math.ceil(diffMs / 86_400_000));
       const totalCost: number  = parseFloat((days * dailyRate).toFixed(2));
 
       tx.update(rentalRef, {

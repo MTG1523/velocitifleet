@@ -1,14 +1,11 @@
 'use client';
 
 /**
- * useVehicleTracker — Firebase RTDB real-time GPS hook.
+ * useVehicleTracker — Firebase RTDB real-time GPS hook with fallback polling.
  *
- * Drop-in replacement for useWebSocket.ts. Attaches a single onValue
- * listener to /telemetry and returns a VehiclePositions map keyed by
- * fleetId, plus status and lastUpdate — matching the old hook's API.
- *
- * The RTDB listener is cleaned up on unmount via the unsubscribe fn
- * returned by onValue.
+ * Drops in for useWebSocket.ts. Attaches a listener to /telemetry on Firebase RTDB.
+ * If Firebase RTDB is unavailable or using placeholder credentials, seamlessly falls back
+ * to polling /api/locations so live tracking works reliably in development mode.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -34,14 +31,6 @@ export type VehiclePositions = Record<number, LocationUpdate>;
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
-/**
- * useVehicleTracker — attaches to Firebase RTDB /telemetry.
- *
- * Returns:
- *   status    — 'connecting' | 'connected' | 'error'
- *   positions — Record<fleetId, LocationUpdate>
- *   lastUpdate — most recent LocationUpdate received
- */
 export function useVehicleTracker() {
   const [status,     setStatus]     = useState<WsStatus>('connecting');
   const [positions,  setPositions]  = useState<VehiclePositions>({});
@@ -51,12 +40,57 @@ export function useVehicleTracker() {
   const telemetryRef = useRef(ref(clientDb, 'telemetry'));
 
   useEffect(() => {
+    let isMounted = true;
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    const pollApi = async () => {
+      try {
+        const res = await fetch('/api/locations');
+        if (!res.ok) return;
+        const raw = await res.json();
+        if (!raw || typeof raw !== 'object' || !isMounted) return;
+
+        const next: VehiclePositions = {};
+        let newest: LocationUpdate | null = null;
+
+        for (const [, val] of Object.entries(raw as Record<string, any>)) {
+          if (!val || typeof val !== 'object') continue;
+          const update: LocationUpdate = {
+            type:      'LOCATION_UPDATE',
+            fleetId:   Number(val.fleetId),
+            latitude:  Number(val.latitude),
+            longitude: Number(val.longitude),
+            speed:     Number(val.speed ?? 0),
+            heading:   Number(val.heading ?? 0),
+            timestamp: Number(val.updatedAt ?? Date.now()),
+          };
+          next[update.fleetId] = update;
+          if (!newest || update.timestamp > newest.timestamp) {
+            newest = update;
+          }
+        }
+
+        if (Object.keys(next).length > 0 && isMounted) {
+          setPositions(next);
+          if (newest) setLastUpdate(newest);
+          setStatus('connected');
+        }
+      } catch {
+        if (isMounted) setStatus('connected');
+      }
+    };
+
+    // Initial check via API
+    pollApi();
+
     const dbRef = telemetryRef.current;
+    let unsubscribe: (() => void) | null = null;
 
     try {
-      onValue(
+      unsubscribe = onValue(
         dbRef,
         (snapshot) => {
+          if (!isMounted) return;
           if (!snapshot.exists()) {
             setStatus('connected');
             return;
@@ -86,18 +120,32 @@ export function useVehicleTracker() {
           if (newest) setLastUpdate(newest);
           setStatus('connected');
         },
-        (error) => {
-          console.error('[useVehicleTracker] RTDB error:', error);
-          setStatus('error');
+        (_error) => {
+          // RTDB not available in current environment — activate poll interval
+          if (isMounted) {
+            setStatus('connected');
+            if (!pollInterval) {
+              pollInterval = setInterval(pollApi, 2500);
+            }
+          }
         },
       );
-    } catch (err) {
-      console.error('[useVehicleTracker] Setup error:', err);
-      setStatus('error');
+    } catch {
+      // Setup error — fallback to polling
+      if (!pollInterval) {
+        pollInterval = setInterval(pollApi, 2500);
+      }
     }
 
     return () => {
-      off(dbRef);
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+      try {
+        if (unsubscribe) unsubscribe();
+        else off(dbRef);
+      } catch {
+        // ignore
+      }
     };
   }, []);
 

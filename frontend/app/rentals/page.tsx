@@ -36,11 +36,13 @@ export default function RentalsPage() {
   const loadAll = useCallback(async () => {
     try {
       const [r, f, u] = await Promise.all([
-        fetch(`${API}/rentals`).then(r=>r.json()),
-        fetch(`${API}/fleet`).then(r=>r.json()),
-        fetch(`${API}/users`).then(r=>r.json()),
+        fetch(`${API}/rentals`).then(res => res.ok ? res.json() : []).catch(() => []),
+        fetch(`${API}/fleet`).then(res => res.ok ? res.json() : []).catch(() => []),
+        fetch(`${API}/users`).then(res => res.ok ? res.json() : []).catch(() => []),
       ]);
-      setRentals(r); setFleet(f); setUsers(u);
+      setRentals(Array.isArray(r) ? r : []);
+      setFleet(Array.isArray(f) ? f : []);
+      setUsers(Array.isArray(u) ? u : []);
     } catch { showToast('Failed to load — check backend connection', 'error'); }
     finally  { setLoading(false); }
   }, []);
@@ -52,7 +54,7 @@ export default function RentalsPage() {
     try {
       const res = await fetch(`${API}/rentals/checkout`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ userId: parseInt(newForm.userId), fleetId: parseInt(newForm.fleetId) }),
+        body: JSON.stringify({ userId: String(newForm.userId), fleetId: String(newForm.fleetId) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Checkout failed');
@@ -65,7 +67,7 @@ export default function RentalsPage() {
     }
   }
 
-  async function handleComplete(rentalId: number) {
+  async function handleComplete(rentalId: number | string) {
     try {
       const res = await fetch(`${API}/rentals/${rentalId}/complete`, { method:'POST' });
       const data = await res.json();
@@ -77,8 +79,10 @@ export default function RentalsPage() {
     }
   }
 
-  const availableFleet  = fleet.filter(f => f.status === 'AVAILABLE');
-  const filteredRentals = filter === 'ALL' ? rentals : rentals.filter(r => r.status === filter);
+  const fleetList = Array.isArray(fleet) ? fleet : [];
+  const rentalsList = Array.isArray(rentals) ? rentals : [];
+  const availableFleet  = fleetList.filter(f => f.status === 'AVAILABLE');
+  const filteredRentals = filter === 'ALL' ? rentalsList : rentalsList.filter(r => r.status === filter);
 
   if (loading) return (
     <div className="loading-center" style={{ minHeight:'calc(100vh - 64px)' }}>
@@ -92,10 +96,10 @@ export default function RentalsPage() {
       <div className="container">
 
         <div className="page-hero">
-          <div className="page-hero-badge">📋 Rental Management</div>
-          <h1 className="page-title">Rentals & <span>Billing</span></h1>
+          <div className="page-hero-badge">✦ PREMIER LEASING & CHARTERS</div>
+          <h1 className="page-title">Rentals & <span>Billing Ledger</span></h1>
           <p className="page-desc">
-            Process checkouts, complete rentals, and view full rental history.
+            Process luxury vehicle checkouts, finalize concierge charters, and view lifetime account history.
           </p>
         </div>
 
@@ -104,10 +108,10 @@ export default function RentalsPage() {
           <button className="btn btn-primary" onClick={() => setShowNew(true)}>+ New Rental</button>
           {(['ALL','ACTIVE','COMPLETED'] as const).map(f => (
             <button key={f} className={`btn btn-ghost btn-sm ${filter===f ? 'active' : ''}`}
-              style={filter===f ? { borderColor:'var(--accent-blue)', color:'var(--accent-blue)' } : {}}
+              style={filter===f ? { borderColor:'var(--accent-gold)', color:'var(--accent-gold-light)', background:'rgba(212,175,55,0.14)', boxShadow:'0 0 12px rgba(212,175,55,0.2)' } : {}}
               onClick={() => setFilter(f)}>{f}</button>
           ))}
-          <span style={{ marginLeft:'auto', fontSize:'0.8rem', color:'var(--text-muted)' }}>
+          <span style={{ marginLeft:'auto', fontSize:'0.82rem', color:'var(--accent-gold-light)', fontWeight:600 }}>
             {filteredRentals.length} rentals
           </span>
         </div>

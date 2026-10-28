@@ -29,7 +29,10 @@ export default function MapPage() {
   const [updateCount, setUpdateCount] = useState(0);
 
   useEffect(() => {
-    fetch(`${API}/fleet`).then(r => r.json()).then(setFleet).catch(console.error);
+    fetch(`${API}/fleet`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setFleet(Array.isArray(d) ? d : []))
+      .catch(console.error);
   }, []);
 
   // Count updates
@@ -49,9 +52,9 @@ export default function MapPage() {
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside className="map-sidebar">
         <div className="map-sidebar-header">
-          <div className="map-sidebar-title">🗺️ Live Tracking</div>
+          <div className="map-sidebar-title">🛰️ Telemetry Radar</div>
           <div className="map-sidebar-sub" style={{ marginBottom:'8px' }}>
-            {vehiclesWithPosition.length} vehicle{vehiclesWithPosition.length !== 1 ? 's' : ''} on map
+            {vehiclesWithPosition.length} vehicle{vehiclesWithPosition.length !== 1 ? 's' : ''} on radar
           </div>
           {/* Connection status */}
           <div className="ws-indicator" style={{ display:'inline-flex', fontSize:'0.72rem' }}>
@@ -132,14 +135,15 @@ export default function MapPage() {
           <div style={{
             position:'absolute', top:'50%', left:'50%',
             transform:'translate(-50%,-50%)',
-            background:'rgba(6,11,24,0.9)', border:'1px solid rgba(0,212,255,0.2)',
+            background:'rgba(12,12,16,0.92)', border:'1px solid rgba(212,175,55,0.3)',
             borderRadius:'16px', padding:'24px 32px', zIndex:1000,
-            textAlign:'center', backdropFilter:'blur(12px)',
+            textAlign:'center', backdropFilter:'blur(16px)',
+            boxShadow:'0 8px 32px rgba(0,0,0,0.8), 0 0 24px rgba(212,175,55,0.15)',
           }}>
             <div style={{ fontSize:'2rem', marginBottom:'8px' }}>📡</div>
-            <div style={{ fontWeight:700, marginBottom:'6px' }}>Waiting for GPS data</div>
+            <div style={{ fontWeight:700, marginBottom:'6px', color:'var(--text-primary)' }}>Waiting for GPS Telemetry</div>
             <div style={{ fontSize:'0.82rem', color:'var(--text-muted)' }}>
-              Start the simulator: <code style={{ color:'var(--accent-blue)' }}>npm start</code> in the <code style={{ color:'var(--accent-blue)' }}>simulator/</code> folder
+              Start the simulator: <code style={{ color:'var(--accent-gold-light)', background:'rgba(212,175,55,0.1)', padding:'2px 6px', borderRadius:'4px' }}>npm start</code> in the <code style={{ color:'var(--accent-gold-light)', background:'rgba(212,175,55,0.1)', padding:'2px 6px', borderRadius:'4px' }}>simulator/</code> folder
             </div>
           </div>
         )}
