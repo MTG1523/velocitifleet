@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import RogGoldBackdrop from "@/components/RogGoldBackdrop";
 import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
@@ -22,9 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/logo-gold.png" />
       </head>
       <body suppressHydrationWarning>
+        <RogGoldBackdrop />
         <AuthProvider>
           <Navbar />
-          <main>{children}</main>
+          <main style={{ position: 'relative', zIndex: 1 }}>{children}</main>
         </AuthProvider>
       </body>
     </html>

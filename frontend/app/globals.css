@@ -61,20 +61,76 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-primary);
-  background-image:
-    linear-gradient(180deg, rgba(7, 7, 9, 0.70) 0%, rgba(7, 7, 9, 0.82) 40%, rgba(7, 7, 9, 0.94) 100%),
-    radial-gradient(ellipse 800px 500px at 15% 18%, rgba(212, 175, 55, 0.24) 0%, rgba(180, 130, 20, 0.08) 45%, transparent 70%),
-    radial-gradient(circle 900px at 85% 65%, rgba(212, 175, 55, 0.10) 0%, transparent 60%),
-    url('/gold-nebula-bg.jpg');
-  background-size: auto, auto, auto, cover;
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: #060609;
   color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* ── ROG Zephyrus Gold Slash & AniMe Matrix Backdrop ───────── */
+.rog-backdrop-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(18, 18, 25, 0.95) 0%, transparent 60%),
+    radial-gradient(circle at 10% 90%, rgba(212, 175, 55, 0.04) 0%, transparent 50%),
+    #050507;
+}
+
+.rog-backdrop-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.rog-slash-light-sweep {
+  position: absolute;
+  top: -40%;
+  left: -40%;
+  width: 180%;
+  height: 180%;
+  background: linear-gradient(
+    114.6deg,
+    transparent 0%,
+    transparent 45%,
+    rgba(255, 248, 220, 0.08) 48.5%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(212, 175, 55, 0.28) 51.5%,
+    transparent 55%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: rogLightSweep 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes rogLightSweep {
+  0% {
+    transform: translate(-50%, -50%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  38% {
+    transform: translate(50%, 50%);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(50%, 50%);
+    opacity: 0;
+  }
 }
 
 /* ── Custom Luxury Scrollbars ───────────────────────────────── */
