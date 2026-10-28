@@ -3,12 +3,16 @@
 import React from 'react';
 
 export default function RogGoldBackdrop() {
-  // Outer Triangle: (24, 24) -> (24, 1056) -> (1896, 1056)
-  // Inner Triangle: (78, 116) -> (78, 1002) -> (1686, 1002)
-  // Forms a uniform 54px thick triangular border band
-  const outerPoints = "24,24 24,1056 1896,1056";
-  const innerPoints = "78,116 78,1002 1686,1002";
-  const ribbonPath = "M 24,24 L 24,1056 L 1896,1056 Z M 78,116 L 78,1002 L 1686,1002 Z";
+  // ── Coordinates for the 54px Thick Triangular Border Ribbon ──
+  // Outer Triangle: (24, 20) -> (24, 1056) -> (1896, 1056)
+  // Inner Triangle: (78, 114) -> (78, 1002) -> (1686, 1002)
+  const outerPoints = "24,20 24,1056 1896,1056";
+  const innerPoints = "78,114 78,1002 1686,1002";
+
+  // Three distinct quadrilateral polygons forming the border ribbon:
+  const leftRibbon = "24,20 78,114 78,1002 24,1056";
+  const bottomRibbon = "24,1056 78,1002 1686,1002 1896,1056";
+  const diagonalRibbon = "24,20 1896,1056 1686,1002 78,114";
 
   return (
     <div className="rog-backdrop-root" aria-hidden="true">
@@ -32,7 +36,7 @@ export default function RogGoldBackdrop() {
 
           {/* Soft ambient aura */}
           <filter id="rogSoftAura" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="30" />
+            <feGaussianBlur stdDeviation="28" />
           </filter>
 
           {/* Primary Gold Border Gradient */}
@@ -46,13 +50,13 @@ export default function RogGoldBackdrop() {
 
           {/* Dark Metallic Texture inside the Border Ribbon */}
           <linearGradient id="rogRibbonFill" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.22)" />
-            <stop offset="35%" stopColor="rgba(16, 16, 22, 0.92)" />
-            <stop offset="70%" stopColor="rgba(10, 10, 14, 0.96)" />
-            <stop offset="100%" stopColor="rgba(212, 175, 55, 0.18)" />
+            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.24)" />
+            <stop offset="35%" stopColor="rgba(16, 16, 22, 0.94)" />
+            <stop offset="70%" stopColor="rgba(10, 10, 14, 0.97)" />
+            <stop offset="100%" stopColor="rgba(212, 175, 55, 0.20)" />
           </linearGradient>
 
-          {/* ROG AniMe Matrix Micro-Dot Grid Pattern inside the border */}
+          {/* ROG AniMe Matrix Micro-Dot Grid Pattern */}
           <pattern
             id="rogBorderDots"
             width="22"
@@ -60,14 +64,14 @@ export default function RogGoldBackdrop() {
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(-28)"
           >
-            <circle cx="11" cy="11" r="1.6" fill="rgba(212, 175, 55, 0.35)" />
-            <circle cx="0" cy="0" r="1.1" fill="rgba(250, 230, 162, 0.22)" />
-            <circle cx="22" cy="0" r="1.1" fill="rgba(250, 230, 162, 0.22)" />
-            <circle cx="0" cy="22" r="1.1" fill="rgba(250, 230, 162, 0.22)" />
-            <circle cx="22" cy="22" r="1.1" fill="rgba(250, 230, 162, 0.22)" />
+            <circle cx="11" cy="11" r="1.6" fill="rgba(212, 175, 55, 0.40)" />
+            <circle cx="0" cy="0" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
+            <circle cx="22" cy="0" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
+            <circle cx="0" cy="22" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
+            <circle cx="22" cy="22" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
           </pattern>
 
-          {/* Accent glowing dot pattern */}
+          {/* Accent illuminated gold dot matrix clusters */}
           <pattern
             id="rogAccentDots"
             width="66"
@@ -76,36 +80,33 @@ export default function RogGoldBackdrop() {
             patternTransform="rotate(-28)"
           >
             <circle cx="33" cy="33" r="2.8" fill="rgba(255, 242, 190, 0.85)" filter="url(#rogNeonGlow)" />
-            <circle cx="11" cy="55" r="2" fill="rgba(212, 175, 55, 0.55)" />
-            <circle cx="55" cy="11" r="2" fill="rgba(212, 175, 55, 0.55)" />
+            <circle cx="11" cy="55" r="2.0" fill="rgba(212, 175, 55, 0.55)" />
+            <circle cx="55" cy="11" r="2.0" fill="rgba(212, 175, 55, 0.55)" />
           </pattern>
 
-          {/* Clip path constraining the graphics strictly to the 54px border ribbon */}
-          <clipPath id="rogBorderClip">
-            <path d={ribbonPath} fillRule="evenodd" />
+          {/* Combined ClipPath covering strictly the 3 ribbon segments */}
+          <clipPath id="rogStrictRibbonClip">
+            <polygon points={leftRibbon} />
+            <polygon points={bottomRibbon} />
+            <polygon points={diagonalRibbon} />
           </clipPath>
         </defs>
 
         {/* ── AMBIENT OUTLINE GLOW ─────────────────────────────────── */}
-        <path
-          d={ribbonPath}
-          fillRule="evenodd"
+        <polygon
+          points={outerPoints}
           fill="none"
-          stroke="rgba(212, 175, 55, 0.30)"
+          stroke="rgba(212, 175, 55, 0.32)"
           strokeWidth="16"
           filter="url(#rogSoftAura)"
         />
 
         {/* ── THE THICK BORDER BAND WITH FULL GRAPHICS ─────────────── */}
-        <g clipPath="url(#rogBorderClip)">
+        <g clipPath="url(#rogStrictRibbonClip)">
           {/* Base metallic gradient fill inside the 54px border ribbon */}
-          <rect
-            x="0"
-            y="0"
-            width="1920"
-            height="1080"
-            fill="url(#rogRibbonFill)"
-          />
+          <polygon points={leftRibbon} fill="url(#rogRibbonFill)" />
+          <polygon points={bottomRibbon} fill="url(#rogRibbonFill)" />
+          <polygon points={diagonalRibbon} fill="url(#rogRibbonFill)" />
 
           {/* Dense AniMe Matrix Micro-Dot Grid */}
           <rect
@@ -124,7 +125,7 @@ export default function RogGoldBackdrop() {
             width="1920"
             height="1080"
             fill="url(#rogAccentDots)"
-            opacity="0.75"
+            opacity="0.80"
           />
 
           {/* Corner gold ambient flares inside ribbon */}
@@ -170,7 +171,7 @@ export default function RogGoldBackdrop() {
         {/* ── CENTER GUIDE ACCENT LINE (Inside the 54px ribbon) ─────── */}
         <line
           x1="51"
-          y1="70"
+          y1="67"
           x2="1791"
           y2="1029"
           stroke="rgba(255, 242, 190, 0.65)"
@@ -180,7 +181,7 @@ export default function RogGoldBackdrop() {
         />
         <line
           x1="51"
-          y1="70"
+          y1="67"
           x2="51"
           y2="1029"
           stroke="rgba(255, 242, 190, 0.45)"
@@ -200,7 +201,7 @@ export default function RogGoldBackdrop() {
         {/* ── CORNER TECH BRACKETS (ROG Laptop Chassis Styling) ────── */}
         {/* Outer Top-Left Bracket */}
         <path
-          d="M 12 70 L 12 12 L 70 12"
+          d="M 12 66 L 12 12 L 66 12"
           fill="none"
           stroke="#fff5c7"
           strokeWidth="2.5"
@@ -225,7 +226,7 @@ export default function RogGoldBackdrop() {
 
         {/* Inner Corner Tech Brackets */}
         <path
-          d="M 90 148 L 90 128 L 110 128"
+          d="M 90 146 L 90 126 L 110 126"
           fill="none"
           stroke="#f7e199"
           strokeWidth="1.8"
@@ -244,12 +245,12 @@ export default function RogGoldBackdrop() {
         />
 
         {/* Vertex Beacon Lights */}
-        <circle cx="24" cy="24" r="5" fill="#fff5c7" filter="url(#rogNeonGlow)" />
+        <circle cx="24" cy="20" r="5" fill="#fff5c7" filter="url(#rogNeonGlow)" />
         <circle cx="24" cy="1056" r="4.5" fill="#d4af37" filter="url(#rogNeonGlow)" />
         <circle cx="1896" cy="1056" r="4.5" fill="#d4af37" filter="url(#rogNeonGlow)" />
 
         {/* Precision Laser Ticks along the Diagonal Border Face */}
-        <g opacity="0.85" transform="translate(90, 88) rotate(28.87)">
+        <g opacity="0.85" transform="translate(90, 84) rotate(28.87)">
           <text
             x="40"
             y="-14"
