@@ -35,12 +35,12 @@ function getAdminDatabase() {
 const UPDATE_INTERVAL = 2000;
 const DATABASE_URL    = process.env.FIREBASE_DATABASE_URL || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || '(default)';
 
-// Configure which vehicles to simulate (id + starting coordinates)
+// Configure which vehicles to simulate (Chennai hubs: Marina, Anna Nagar, Airport, ECR)
 const VEHICLES = [
-  { id: 1, lat: 37.774929, lng: -122.419416, heading: 45  },
-  { id: 3, lat: 37.785834, lng: -122.400747, heading: 180 },
-  { id: 5, lat: 37.769234, lng: -122.430512, heading: 270 },
-  { id: 7, lat: 37.758000, lng: -122.410000, heading: 90  },
+  { id: 1, lat: 13.0500, lng: 80.2824, heading: 45  }, // Marina Beach
+  { id: 3, lat: 13.0850, lng: 80.2100, heading: 180 }, // Anna Nagar
+  { id: 5, lat: 12.9941, lng: 80.1709, heading: 270 }, // Airport
+  { id: 7, lat: 12.9830, lng: 80.2594, heading: 90  }, // ECR / Thiruvanmiyur
 ];
 
 function timestamp() {

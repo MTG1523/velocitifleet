@@ -193,7 +193,7 @@ export default function RogGoldBackdrop() {
             letterSpacing="0.28em"
             fontWeight="bold"
           >
-            // ROG.SLASH.LIGHTING // ZEPHYRUS.EDITION // LAT 37.7749° N
+            // ROG.SLASH.LIGHTING // ZEPHYRUS.EDITION // CHENNAI // LAT 13.0827° N
           </text>
         </g>
         {/* Mirrored above the line */}
@@ -207,7 +207,7 @@ export default function RogGoldBackdrop() {
             letterSpacing="0.28em"
             fontWeight="bold"
           >
-            // VELOCITI.TELEMETRY // DUAL.MIRRORED.HAZE // LONG 122.4194° W
+            // VELOCITI.TELEMETRY // DUAL.MIRRORED.HAZE // CHENNAI // LONG 80.2707° E
           </text>
         </g>
       </svg>

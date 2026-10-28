@@ -46,11 +46,14 @@ const INITIAL_RENTALS: MockDoc[] = [
 ];
 
 const INITIAL_TELEMETRY: Record<string, any> = {
-  '1': { fleetId: 1, latitude: 37.7749, longitude: -122.4194, speed: 45, heading: 90,  updatedAt: Date.now() },
-  '2': { fleetId: 2, latitude: 37.7833, longitude: -122.4167, speed: 30, heading: 180, updatedAt: Date.now() },
-  '3': { fleetId: 3, latitude: 37.7690, longitude: -122.4467, speed: 55, heading: 45,  updatedAt: Date.now() },
-  '4': { fleetId: 4, latitude: 37.7900, longitude: -122.4000, speed: 20, heading: 270, updatedAt: Date.now() },
-  '5': { fleetId: 5, latitude: 37.7500, longitude: -122.4200, speed: 40, heading: 120, updatedAt: Date.now() },
+  '1': { fleetId: 1, latitude: 13.0500, longitude: 80.2824, speed: 42, heading: 20,  updatedAt: Date.now() }, // Marina Beach
+  '2': { fleetId: 2, latitude: 13.0418, longitude: 80.2341, speed: 28, heading: 180, updatedAt: Date.now() }, // T. Nagar
+  '3': { fleetId: 3, latitude: 13.0850, longitude: 80.2100, speed: 52, heading: 90,  updatedAt: Date.now() }, // Anna Nagar
+  '4': { fleetId: 4, latitude: 12.9897, longitude: 80.2479, speed: 34, heading: 195, updatedAt: Date.now() }, // OMR / Tidel Park
+  '5': { fleetId: 5, latitude: 12.9941, longitude: 80.1709, speed: 48, heading: 45,  updatedAt: Date.now() }, // Airport / GST Road
+  '6': { fleetId: 6, latitude: 13.0600, longitude: 80.2400, speed: 0,  heading: 0,   updatedAt: Date.now() }, // Nungambakkam
+  '7': { fleetId: 7, latitude: 12.9830, longitude: 80.2594, speed: 55, heading: 180, updatedAt: Date.now() }, // ECR / Thiruvanmiyur
+  '8': { fleetId: 8, latitude: 12.9815, longitude: 80.2180, speed: 38, heading: 270, updatedAt: Date.now() }, // Velachery
 };
 
 // ── In-Memory State Singleton ─────────────────────────────────────────────

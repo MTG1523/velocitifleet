@@ -99,8 +99,8 @@ export default function VehicleMap({ positions, fleetData, selectedId, onSelect 
     }
 
     const map = L.map(containerRef.current, {
-      center: [37.774929, -122.419416],
-      zoom: 13,
+      center: [13.0827, 80.2707],
+      zoom: 12,
       zoomControl: true,
     });
 

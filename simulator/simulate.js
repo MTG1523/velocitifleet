@@ -47,9 +47,9 @@ const VEHICLE_ID        = parseInt(process.argv[2]) || 1;
 const UPDATE_INTERVAL   = 2000;   // ms between GPS pings
 const DATABASE_URL      = process.env.FIREBASE_DATABASE_URL || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || '(default)';
 
-// Starting position (San Francisco by default)
-let lat     = parseFloat(process.argv[3]) || 37.774929;
-let lng     = parseFloat(process.argv[4]) || -122.419416;
+// Starting position (Chennai, India by default)
+let lat     = parseFloat(process.argv[3]) || 13.0827;
+let lng     = parseFloat(process.argv[4]) || 80.2707;
 let heading = Math.floor(Math.random() * 360);
 let speed   = 30 + Math.random() * 20; // km/h
 

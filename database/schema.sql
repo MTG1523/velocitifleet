@@ -92,6 +92,6 @@ INSERT INTO fleet (make, model, type, registration, status, year, daily_rate) VA
 ('Yamaha',  'MT-07',      'Motorcycle', 'VF-008', 'AVAILABLE',   2023, 30.00);
 
 INSERT INTO vehicle_locations (fleet_id, latitude, longitude, speed, heading) VALUES
-(1,  37.774929, -122.419416, 0.0,  0),
-(4,  37.785834, -122.400747, 35.5, 90),
-(5,  37.769234, -122.430512, 0.0,  0);
+(1,  13.0500, 80.2824, 0.0,  0),
+(4,  12.9897, 80.2479, 35.5, 90),
+(5,  12.9941, 80.1709, 0.0,  0);
