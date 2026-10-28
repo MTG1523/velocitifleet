@@ -39,11 +39,29 @@ function getClientApp(): FirebaseApp {
   if (getApps().length > 0) {
     return getApps()[0];
   }
-  return initializeApp(firebaseConfig);
+  return initializeApp({
+    apiKey:            firebaseConfig.apiKey || 'demo-api-key',
+    authDomain:        firebaseConfig.authDomain || 'velocitifleet-demo.firebaseapp.com',
+    projectId:         firebaseConfig.projectId || 'velocitifleet-demo',
+    storageBucket:     firebaseConfig.storageBucket || 'velocitifleet-demo.appspot.com',
+    messagingSenderId: firebaseConfig.messagingSenderId || '1234567890',
+    appId:             firebaseConfig.appId || '1:1234567890:web:demo',
+    databaseURL:       firebaseConfig.databaseURL || 'https://velocitifleet-demo-default-rtdb.firebaseio.com',
+  });
+}
+
+function initClientDb(): Database {
+  const app = getClientApp();
+  const dbUrl = firebaseConfig.databaseURL || 'https://velocitifleet-demo-default-rtdb.firebaseio.com';
+  try {
+    return getDatabase(app, dbUrl);
+  } catch {
+    return getDatabase(app);
+  }
 }
 
 /** Client-side Firebase Realtime Database instance. */
-export const clientDb: Database = getDatabase(getClientApp());
+export const clientDb: Database = initClientDb();
 
 /** Client-side Firebase Auth instance (null if API key unconfigured). */
 export const clientAuth: Auth | null = isFirebaseAuthConfigured()
