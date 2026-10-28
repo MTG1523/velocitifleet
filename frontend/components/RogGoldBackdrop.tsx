@@ -13,9 +13,9 @@ export default function RogGoldBackdrop() {
       >
         <defs>
           {/* Intense neon gold glow */}
-          <filter id="rogSlashGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="8" result="blur1" />
-            <feGaussianBlur stdDeviation="24" result="blur2" />
+          <filter id="rogSlashGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="7" result="blur1" />
+            <feGaussianBlur stdDeviation="22" result="blur2" />
             <feMerge>
               <feMergeNode in="blur2" />
               <feMergeNode in="blur1" />
@@ -24,61 +24,105 @@ export default function RogGoldBackdrop() {
           </filter>
 
           {/* Deep ambient gold bloom */}
-          <filter id="rogAmbientBloom" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="50" />
+          <filter id="rogAmbientBloom" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="55" />
           </filter>
 
-          {/* Gold LED Gradient */}
+          {/* Core Gold LED Gradient */}
           <linearGradient id="rogLedGrad" x1="0%" y1="0%" x2="100%" y2="80%">
             <stop offset="0%" stopColor="#fff8db" stopOpacity="0.95" />
             <stop offset="20%" stopColor="#f7e199" stopOpacity="1" />
             <stop offset="60%" stopColor="#d4af37" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#a37a14" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#a37a14" stopOpacity="0.85" />
           </linearGradient>
 
-          {/* Subtle Dual-Finish Lid Gradient (Lower-Left Half) */}
-          <linearGradient id="rogLowerLidGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.04)" />
-            <stop offset="40%" stopColor="rgba(18, 18, 24, 0.5)" />
-            <stop offset="100%" stopColor="rgba(8, 8, 11, 0.8)" />
+          {/* Mirrored Upper-Right Haze Gradient (Above/After Line) */}
+          <linearGradient id="rogUpperHazeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.16)" />
+            <stop offset="25%" stopColor="rgba(190, 150, 35, 0.09)" />
+            <stop offset="55%" stopColor="rgba(18, 18, 25, 0.55)" />
+            <stop offset="100%" stopColor="rgba(8, 8, 11, 0.85)" />
           </linearGradient>
 
-          {/* Subtle CNC Micro-Perforation Texture (Ultra-Low Opacity) */}
+          {/* Mirrored Lower-Left Haze Gradient (Below/Before Line) */}
+          <linearGradient id="rogLowerHazeGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.16)" />
+            <stop offset="25%" stopColor="rgba(190, 150, 35, 0.09)" />
+            <stop offset="55%" stopColor="rgba(18, 18, 25, 0.55)" />
+            <stop offset="100%" stopColor="rgba(8, 8, 11, 0.85)" />
+          </linearGradient>
+
+          {/* Subtle CNC Micro-Perforation Texture (Mirrored on both sides) */}
           <pattern
             id="rogLidMicroTexture"
-            width="18"
-            height="18"
+            width="20"
+            height="20"
             patternUnits="userSpaceOnUse"
             patternTransform="rotate(-28.8)"
           >
-            <circle cx="9" cy="9" r="0.9" fill="rgba(212, 175, 55, 0.08)" />
+            <circle cx="10" cy="10" r="1.1" fill="rgba(212, 175, 55, 0.14)" />
+            <circle cx="0" cy="0" r="0.8" fill="rgba(250, 230, 162, 0.08)" />
+            <circle cx="20" cy="20" r="0.8" fill="rgba(250, 230, 162, 0.08)" />
           </pattern>
         </defs>
 
-        {/* ── ROG DUAL-FINISH ASYMMETRIC LID CONTRAST ─────────────── */}
-        {/* Lower-left half of the lid below the slash */}
+        {/* ── SYMMETRIC DUAL-SIDED HAZE & TEXTURE (MIRRORED) ──────── */}
+        {/* Upper-Right Half (Above / After the Line) */}
+        <polygon
+          points="0,0 1920,0 1920,950 0,30"
+          fill="url(#rogUpperHazeGrad)"
+        />
+        <polygon
+          points="0,0 1920,0 1920,950 0,30"
+          fill="url(#rogLidMicroTexture)"
+        />
+
+        {/* Lower-Left Half (Below / Before the Line) */}
         <polygon
           points="0,30 1920,950 1920,1080 0,1080"
-          fill="url(#rogLowerLidGrad)"
+          fill="url(#rogLowerHazeGrad)"
         />
         <polygon
           points="0,30 1920,950 1920,1080 0,1080"
           fill="url(#rogLidMicroTexture)"
         />
 
-        {/* ── AUTHENTIC ROG ZEPHYRUS "SLASH LIGHTING" BAR ─────────── */}
-        {/* Layer 1: Wide Atmospheric Ambient Bloom */}
+        {/* ── MIRRORED AMBIENT GOLD RADIANCE BEAMS ─────────────────── */}
+        {/* Upper side haze glow band (mirrored above line) */}
+        <line
+          x1="-40"
+          y1="-30"
+          x2="1960"
+          y2="910"
+          stroke="rgba(212, 175, 55, 0.24)"
+          strokeWidth="90"
+          filter="url(#rogAmbientBloom)"
+        />
+
+        {/* Lower side haze glow band (mirrored below line) */}
+        <line
+          x1="-40"
+          y1="50"
+          x2="1960"
+          y2="990"
+          stroke="rgba(212, 175, 55, 0.24)"
+          strokeWidth="90"
+          filter="url(#rogAmbientBloom)"
+        />
+
+        {/* Wide Center Atmosphere */}
         <line
           x1="-40"
           y1="10"
           x2="1960"
           y2="970"
-          stroke="rgba(212, 175, 55, 0.28)"
+          stroke="rgba(212, 175, 55, 0.32)"
           strokeWidth="60"
           filter="url(#rogAmbientBloom)"
         />
 
-        {/* Layer 2: Core Neon Aura */}
+        {/* ── AUTHENTIC ROG ZEPHYRUS "SLASH LIGHTING" BAR ─────────── */}
+        {/* Core Neon Aura */}
         <line
           x1="-20"
           y1="20"
@@ -89,18 +133,29 @@ export default function RogGoldBackdrop() {
           filter="url(#rogSlashGlow)"
         />
 
-        {/* Layer 3: Secondary Precision Laser Etched Accent Line (0.8px) */}
+        {/* Mirrored Laser Grooves (Above & Below the core line) */}
+        {/* Upper Accent Line */}
         <line
           x1="-20"
-          y1="34"
+          y1="18"
           x2="1940"
-          y2="974"
+          y2="938"
           stroke="rgba(212, 175, 55, 0.35)"
           strokeWidth="1"
+          strokeDasharray="14 10 4 10"
+        />
+        {/* Lower Accent Line */}
+        <line
+          x1="-20"
+          y1="42"
+          x2="1940"
+          y2="962"
+          stroke="rgba(212, 175, 55, 0.35)"
+          strokeWidth="1"
+          strokeDasharray="14 10 4 10"
         />
 
-        {/* Layer 4: Segmented Mini-LED Light Blade (The Iconic Zephyrus Slash) */}
-        {/* Uses dashed strokes to create precision mini-LED illumination segments */}
+        {/* Segmented Mini-LED Light Blade */}
         <line
           x1="0"
           y1="30"
@@ -113,7 +168,7 @@ export default function RogGoldBackdrop() {
           filter="url(#rogSlashGlow)"
         />
 
-        {/* Layer 5: Bright Core Center Highlight */}
+        {/* Center Bright Core Highlight */}
         <line
           x1="0"
           y1="30"
@@ -126,8 +181,9 @@ export default function RogGoldBackdrop() {
           opacity="0.9"
         />
 
-        {/* ── ROG CNC PRECISION TECHNICAL DETAILS ─────────────────── */}
-        <g opacity="0.75" transform="translate(180, 150) rotate(25.6)">
+        {/* ── TECHNICAL CNC COORDINATE LABELS (MIRRORED BOTH SIDES) ── */}
+        {/* Below the line */}
+        <g opacity="0.80" transform="translate(180, 150) rotate(25.6)">
           <text
             x="0"
             y="-10"
@@ -137,7 +193,21 @@ export default function RogGoldBackdrop() {
             letterSpacing="0.28em"
             fontWeight="bold"
           >
-            // ROG.SLASH.LIGHTING // ZEPHYRUS.EDITION // LAT 37.7749° N // 2.4GHz
+            // ROG.SLASH.LIGHTING // ZEPHYRUS.EDITION // LAT 37.7749° N
+          </text>
+        </g>
+        {/* Mirrored above the line */}
+        <g opacity="0.80" transform="translate(1220, 640) rotate(25.6)">
+          <text
+            x="0"
+            y="-10"
+            fill="#d4af37"
+            fontSize="9"
+            fontFamily="monospace"
+            letterSpacing="0.28em"
+            fontWeight="bold"
+          >
+            // VELOCITI.TELEMETRY // DUAL.MIRRORED.HAZE // LONG 122.4194° W
           </text>
         </g>
       </svg>
