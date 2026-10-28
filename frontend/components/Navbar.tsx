@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { useWebSocket } from '@/hooks/useVehicleTracker';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
