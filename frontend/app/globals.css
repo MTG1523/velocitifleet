@@ -61,10 +61,15 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
   background-image:
-    radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.07) 0%, transparent 60%),
-    radial-gradient(circle at 100% 100%, rgba(212, 175, 55, 0.04) 0%, transparent 40%);
+    linear-gradient(180deg, rgba(7, 7, 9, 0.70) 0%, rgba(7, 7, 9, 0.82) 40%, rgba(7, 7, 9, 0.94) 100%),
+    radial-gradient(ellipse 800px 500px at 15% 18%, rgba(212, 175, 55, 0.24) 0%, rgba(180, 130, 20, 0.08) 45%, transparent 70%),
+    radial-gradient(circle 900px at 85% 65%, rgba(212, 175, 55, 0.10) 0%, transparent 60%),
+    url('/gold-nebula-bg.jpg');
+  background-size: auto, auto, auto, cover;
+  background-position: center top;
+  background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
@@ -216,6 +221,28 @@ body {
 .page-hero {
   padding: 40px 0 36px;
   position: relative;
+}
+.page-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: -80px;
+  width: 580px;
+  height: 420px;
+  background: radial-gradient(circle at 35% 40%, rgba(212, 175, 55, 0.22) 0%, rgba(245, 208, 107, 0.08) 50%, transparent 75%);
+  filter: blur(55px);
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+  animation: heroGlowPulse 8s ease-in-out infinite alternate;
+}
+@keyframes heroGlowPulse {
+  0% { transform: scale(0.95); opacity: 0.65; }
+  100% { transform: scale(1.1); opacity: 0.95; }
+}
+.page-hero > * {
+  position: relative;
+  z-index: 1;
 }
 .page-hero-badge {
   display: inline-flex;
