@@ -97,20 +97,31 @@ body {
   display: block;
 }
 
-.rog-border-pulse {
+.rog-slash-light-sweep {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    115.6deg,
+    transparent 0%,
+    transparent 47%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(212, 175, 55, 0.35) 51%,
+    transparent 54%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
   pointer-events: none;
-  background: radial-gradient(circle at 28px 28px, rgba(212, 175, 55, 0.12) 0%, transparent 400px);
-  animation: rogApexPulse 5s ease-in-out infinite alternate;
+  animation: rogLightSweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-@keyframes rogApexPulse {
-  0% { opacity: 0.4; transform: scale(0.98); }
-  100% { opacity: 0.9; transform: scale(1.02); }
+@keyframes rogLightSweep {
+  0% { transform: translate(-60%, -60%); opacity: 0; }
+  12% { opacity: 1; }
+  35% { transform: translate(60%, 60%); opacity: 0; }
+  100% { transform: translate(60%, 60%); opacity: 0; }
 }
 
 /* ── Custom Luxury Scrollbars ───────────────────────────────── */

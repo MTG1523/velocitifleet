@@ -3,39 +3,6 @@
 import React from 'react';
 
 export default function RogGoldBackdrop() {
-  // Smooth curved outer triangle with rounded corners
-  const outerCurvePath =
-    "M 42,980 " +
-    "L 42,110 " +
-    "Q 42,34 100,62 " +
-    "Q 980,550 1830,1006 " +
-    "Q 1870,1028 1810,1032 " +
-    "L 90,1032 " +
-    "Q 42,1032 42,980 Z";
-
-  // Smooth curved inner triangle (50px inset)
-  const innerCurvePath =
-    "M 92,940 " +
-    "L 92,170 " +
-    "Q 92,108 142,132 " +
-    "Q 960,546 1670,970 " +
-    "Q 1710,982 1660,982 " +
-    "L 140,982 " +
-    "Q 92,982 92,940 Z";
-
-  // Center track line inside the ribbon
-  const centerTrackPath =
-    "M 67,960 " +
-    "L 67,140 " +
-    "Q 67,71 121,97 " +
-    "Q 970,548 1750,988 " +
-    "Q 1790,1005 1735,1007 " +
-    "L 115,1007 " +
-    "Q 67,1007 67,960 Z";
-
-  // Combined ribbon path with evenodd rule for clipping
-  const ribbonCompoundPath = `${outerCurvePath} ${innerCurvePath}`;
-
   return (
     <div className="rog-backdrop-root" aria-hidden="true">
       <svg
@@ -46,9 +13,9 @@ export default function RogGoldBackdrop() {
       >
         <defs>
           {/* Intense neon gold glow */}
-          <filter id="rogNeonGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="6" result="blur1" />
-            <feGaussianBlur stdDeviation="16" result="blur2" />
+          <filter id="rogSlashGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="8" result="blur1" />
+            <feGaussianBlur stdDeviation="24" result="blur2" />
             <feMerge>
               <feMergeNode in="blur2" />
               <feMergeNode in="blur1" />
@@ -56,189 +23,127 @@ export default function RogGoldBackdrop() {
             </feMerge>
           </filter>
 
-          {/* Soft ambient aura */}
-          <filter id="rogSoftAura" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="28" />
+          {/* Deep ambient gold bloom */}
+          <filter id="rogAmbientBloom" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="50" />
           </filter>
 
-          {/* Primary Gold Border Gradient */}
-          <linearGradient id="rogGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#fff5c7" />
-            <stop offset="25%" stopColor="#f7e199" />
-            <stop offset="55%" stopColor="#d4af37" />
-            <stop offset="85%" stopColor="#aa7c11" />
-            <stop offset="100%" stopColor="#fce9a6" />
+          {/* Gold LED Gradient */}
+          <linearGradient id="rogLedGrad" x1="0%" y1="0%" x2="100%" y2="80%">
+            <stop offset="0%" stopColor="#fff8db" stopOpacity="0.95" />
+            <stop offset="20%" stopColor="#f7e199" stopOpacity="1" />
+            <stop offset="60%" stopColor="#d4af37" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#a37a14" stopOpacity="0.8" />
           </linearGradient>
 
-          {/* Dark Metallic Texture inside the Border Ribbon */}
-          <linearGradient id="rogRibbonFill" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.25)" />
-            <stop offset="35%" stopColor="rgba(16, 16, 22, 0.94)" />
-            <stop offset="70%" stopColor="rgba(10, 10, 14, 0.97)" />
-            <stop offset="100%" stopColor="rgba(212, 175, 55, 0.22)" />
+          {/* Subtle Dual-Finish Lid Gradient (Lower-Left Half) */}
+          <linearGradient id="rogLowerLidGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.04)" />
+            <stop offset="40%" stopColor="rgba(18, 18, 24, 0.5)" />
+            <stop offset="100%" stopColor="rgba(8, 8, 11, 0.8)" />
           </linearGradient>
 
-          {/* ROG AniMe Matrix Micro-Dot Grid Pattern */}
+          {/* Subtle CNC Micro-Perforation Texture (Ultra-Low Opacity) */}
           <pattern
-            id="rogBorderDots"
-            width="22"
-            height="22"
+            id="rogLidMicroTexture"
+            width="18"
+            height="18"
             patternUnits="userSpaceOnUse"
-            patternTransform="rotate(-28)"
+            patternTransform="rotate(-28.8)"
           >
-            <circle cx="11" cy="11" r="1.6" fill="rgba(212, 175, 55, 0.40)" />
-            <circle cx="0" cy="0" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
-            <circle cx="22" cy="0" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
-            <circle cx="0" cy="22" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
-            <circle cx="22" cy="22" r="1.0" fill="rgba(250, 230, 162, 0.25)" />
+            <circle cx="9" cy="9" r="0.9" fill="rgba(212, 175, 55, 0.08)" />
           </pattern>
-
-          {/* Accent illuminated gold dot matrix clusters */}
-          <pattern
-            id="rogAccentDots"
-            width="66"
-            height="66"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(-28)"
-          >
-            <circle cx="33" cy="33" r="2.8" fill="rgba(255, 242, 190, 0.85)" filter="url(#rogNeonGlow)" />
-            <circle cx="11" cy="55" r="2.0" fill="rgba(212, 175, 55, 0.55)" />
-            <circle cx="55" cy="11" r="2.0" fill="rgba(212, 175, 55, 0.55)" />
-          </pattern>
-
-          {/* Mask strictly constraining graphics to the curved ribbon */}
-          <mask id="curvedRibbonMask">
-            {/* White reveals, black hides */}
-            <path d={outerCurvePath} fill="#ffffff" />
-            <path d={innerCurvePath} fill="#000000" />
-          </mask>
         </defs>
 
-        {/* ── AMBIENT OUTLINE GLOW ─────────────────────────────────── */}
-        <path
-          d={outerCurvePath}
-          fill="none"
-          stroke="rgba(212, 175, 55, 0.32)"
-          strokeWidth="16"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          filter="url(#rogSoftAura)"
+        {/* ── ROG DUAL-FINISH ASYMMETRIC LID CONTRAST ─────────────── */}
+        {/* Lower-left half of the lid below the slash */}
+        <polygon
+          points="0,30 1920,950 1920,1080 0,1080"
+          fill="url(#rogLowerLidGrad)"
+        />
+        <polygon
+          points="0,30 1920,950 1920,1080 0,1080"
+          fill="url(#rogLidMicroTexture)"
         />
 
-        {/* ── THE THICK CURVED BORDER RIBBON WITH FULL GRAPHICS ────── */}
-        <g mask="url(#curvedRibbonMask)">
-          {/* Base metallic gradient fill inside the curved ribbon */}
-          <rect
-            x="0"
-            y="0"
-            width="1920"
-            height="1080"
-            fill="url(#rogRibbonFill)"
-          />
-
-          {/* Dense AniMe Matrix Micro-Dot Grid */}
-          <rect
-            x="0"
-            y="0"
-            width="1920"
-            height="1080"
-            fill="url(#rogBorderDots)"
-            opacity="0.95"
-          />
-
-          {/* Accent illuminated gold dot matrix clusters */}
-          <rect
-            x="0"
-            y="0"
-            width="1920"
-            height="1080"
-            fill="url(#rogAccentDots)"
-            opacity="0.80"
-          />
-
-          {/* Subtle Corner Ambient Flares inside the curved apexes */}
-          <circle cx="70" cy="70" r="150" fill="rgba(212, 175, 55, 0.35)" filter="url(#rogSoftAura)" />
-          <circle cx="70" cy="1000" r="140" fill="rgba(212, 175, 55, 0.30)" filter="url(#rogSoftAura)" />
-          <circle cx="1780" cy="1010" r="150" fill="rgba(212, 175, 55, 0.30)" filter="url(#rogSoftAura)" />
-        </g>
-
-        {/* ── OUTER CURVED BORDER PERIMETER ────────────────────────── */}
-        {/* Outer Neon Glow */}
-        <path
-          d={outerCurvePath}
-          fill="none"
-          stroke="rgba(245, 208, 107, 0.75)"
-          strokeWidth="3.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          filter="url(#rogNeonGlow)"
-        />
-        {/* Outer Sharp Core Line */}
-        <path
-          d={outerCurvePath}
-          fill="none"
-          stroke="url(#rogGoldGrad)"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-          strokeLinecap="round"
+        {/* ── AUTHENTIC ROG ZEPHYRUS "SLASH LIGHTING" BAR ─────────── */}
+        {/* Layer 1: Wide Atmospheric Ambient Bloom */}
+        <line
+          x1="-40"
+          y1="10"
+          x2="1960"
+          y2="970"
+          stroke="rgba(212, 175, 55, 0.28)"
+          strokeWidth="60"
+          filter="url(#rogAmbientBloom)"
         />
 
-        {/* ── INNER CURVED BORDER PERIMETER ────────────────────────── */}
-        {/* Inner Neon Glow */}
-        <path
-          d={innerCurvePath}
-          fill="none"
-          stroke="rgba(245, 208, 107, 0.65)"
-          strokeWidth="3"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          filter="url(#rogNeonGlow)"
-        />
-        {/* Inner Sharp Core Line */}
-        <path
-          d={innerCurvePath}
-          fill="none"
-          stroke="url(#rogGoldGrad)"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
+        {/* Layer 2: Core Neon Aura */}
+        <line
+          x1="-20"
+          y1="20"
+          x2="1940"
+          y2="960"
+          stroke="rgba(247, 225, 153, 0.65)"
+          strokeWidth="10"
+          filter="url(#rogSlashGlow)"
         />
 
-        {/* ── CENTER DASHED GUIDE LINE (Inside the curved ribbon) ──── */}
-        <path
-          d={centerTrackPath}
-          fill="none"
-          stroke="rgba(255, 242, 190, 0.60)"
+        {/* Layer 3: Secondary Precision Laser Etched Accent Line (0.8px) */}
+        <line
+          x1="-20"
+          y1="34"
+          x2="1940"
+          y2="974"
+          stroke="rgba(212, 175, 55, 0.35)"
+          strokeWidth="1"
+        />
+
+        {/* Layer 4: Segmented Mini-LED Light Blade (The Iconic Zephyrus Slash) */}
+        {/* Uses dashed strokes to create precision mini-LED illumination segments */}
+        <line
+          x1="0"
+          y1="30"
+          x2="1920"
+          y2="950"
+          stroke="url(#rogLedGrad)"
+          strokeWidth="4"
+          strokeDasharray="42 6"
+          strokeLinecap="round"
+          filter="url(#rogSlashGlow)"
+        />
+
+        {/* Layer 5: Bright Core Center Highlight */}
+        <line
+          x1="0"
+          y1="30"
+          x2="1920"
+          y2="950"
+          stroke="#ffffff"
           strokeWidth="1.2"
-          strokeLinejoin="round"
+          strokeDasharray="42 6"
           strokeLinecap="round"
-          strokeDasharray="18 10 6 10"
-          filter="url(#rogNeonGlow)"
+          opacity="0.9"
         />
 
-        {/* Vertex Beacon Lights at the curved apexes */}
-        <circle cx="70" cy="48" r="5" fill="#fff5c7" filter="url(#rogNeonGlow)" />
-        <circle cx="66" cy="1006" r="4.5" fill="#d4af37" filter="url(#rogNeonGlow)" />
-        <circle cx="1820" cy="1018" r="4.5" fill="#d4af37" filter="url(#rogNeonGlow)" />
-
-        {/* Precision Laser Ticks along the Diagonal Curved Face */}
-        <g opacity="0.85" transform="translate(110, 92) rotate(28.2)">
+        {/* ── ROG CNC PRECISION TECHNICAL DETAILS ─────────────────── */}
+        <g opacity="0.75" transform="translate(180, 150) rotate(25.6)">
           <text
-            x="40"
-            y="-14"
+            x="0"
+            y="-10"
             fill="#d4af37"
             fontSize="9"
             fontFamily="monospace"
-            letterSpacing="0.25em"
+            letterSpacing="0.28em"
             fontWeight="bold"
           >
-            // ROG.ZEPHYRUS.CURVED.SLASH // MATRIX.50MM // GOLD.EDITION
+            // ROG.SLASH.LIGHTING // ZEPHYRUS.EDITION // LAT 37.7749° N // 2.4GHz
           </text>
         </g>
       </svg>
 
-      {/* Dynamic light pulse sweep around the border */}
-      <div className="rog-border-pulse" />
+      {/* Subtle Traveling Slash Light Pulse */}
+      <div className="rog-slash-light-sweep" />
     </div>
   );
 }
