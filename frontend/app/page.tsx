@@ -207,6 +207,9 @@ export default function DashboardPage() {
             <Link href="/map" className="btn btn-ghost" id="hero-live-map-link">
               🗺️ Live Radar Map
             </Link>
+            <Link href="/driver" className="btn btn-ghost" id="hero-driver-app-link" style={{ borderColor: 'rgba(212,175,55,0.4)', color: 'var(--accent-gold-light)' }}>
+              📱 Driver App & GPS Beacon
+            </Link>
             <Link href="/rentals" className="btn btn-ghost" id="hero-rentals-link">
               🔑 Rentals Ledger
             </Link>
