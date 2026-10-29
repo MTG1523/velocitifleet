@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "VelocitiFleet Driver",
+    "slug": "velocitifleet-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#070709",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.velocitifleet.driver",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "VelocitiFleet Driver requires your phone's GPS location to guide you directly to your assigned vehicle and broadcast live journey telemetry to fleet dispatch.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "VelocitiFleet Driver shares your phone's location in the background during active client charters.",
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.velocitifleet.driver",
+      "adaptiveIcon": {
+        "backgroundColor": "#070709",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0ec440c8-97d0-4ed2-9720-21ebe413456d"
+      }
+    }
+  }
+}
