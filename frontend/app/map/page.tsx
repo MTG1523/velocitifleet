@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useWebSocket } from '@/hooks/useVehicleTracker';
 
@@ -22,18 +23,29 @@ interface Fleet {
   registration: string; status: string;
 }
 
-export default function MapPage() {
+function MapContent() {
+  const searchParams = useSearchParams();
+  const vehicleParam = searchParams.get('vehicle');
+
   const { status, positions, lastUpdate } = useWebSocket();
   const [fleet,      setFleet]      = useState<Fleet[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetch(`${API}/fleet`)
       .then(r => r.ok ? r.json() : [])
-      .then(d => setFleet(Array.isArray(d) ? d : []))
+      .then(d => {
+        const fleetList = Array.isArray(d) ? d : [];
+        setFleet(fleetList);
+        if (vehicleParam) {
+          const match = fleetList.find(v => String(v.id) === String(vehicleParam));
+          if (match) setSelectedId(match.id);
+        }
+      })
       .catch(console.error);
-  }, []);
+  }, [vehicleParam]);
 
   // Count updates
   useEffect(() => {
@@ -41,58 +53,103 @@ export default function MapPage() {
   }, [lastUpdate]);
 
   const wsLabel =
-    status === 'connected'  ? 'Connected — receiving live GPS' :
+    status === 'connected'  ? 'Connected — live GPS' :
     status === 'connecting' ? 'Connecting to server...' :
     status === 'error'      ? 'Connection error' : 'Offline';
 
   const vehiclesWithPosition = Object.keys(positions).map(Number);
+
+  const filteredFleet = fleet.filter(v => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      v.make.toLowerCase().includes(q) ||
+      v.model.toLowerCase().includes(q) ||
+      v.registration.toLowerCase().includes(q) ||
+      v.type.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="map-layout">
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside className="map-sidebar">
         <div className="map-sidebar-header">
-          <div className="map-sidebar-title">🛰️ Telemetry Radar</div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div className="map-sidebar-title">🛰️ Telemetry Radar</div>
+            {selectedId && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ padding:'2px 8px', fontSize:'0.72rem' }}
+                onClick={() => setSelectedId(null)}
+              >
+                Clear Focus
+              </button>
+            )}
+          </div>
           <div className="map-sidebar-sub" style={{ marginBottom:'8px' }}>
             {vehiclesWithPosition.length} vehicle{vehiclesWithPosition.length !== 1 ? 's' : ''} on radar
           </div>
+
           {/* Connection status */}
-          <div className="ws-indicator" style={{ display:'inline-flex', fontSize:'0.72rem' }}>
-            <div className={`ws-dot ${status}`} />
-            <span>{wsLabel}</span>
-          </div>
-          {updateCount > 0 && (
-            <div style={{ marginTop:'8px' }} className="live-ping">
-              <div className="live-ping-dot" />
-              {updateCount} update{updateCount !== 1 ? 's' : ''} received
+          <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+            <div className="ws-indicator" style={{ display:'inline-flex', fontSize:'0.72rem' }}>
+              <div className={`ws-dot ${status}`} />
+              <span>{wsLabel}</span>
             </div>
-          )}
+            {updateCount > 0 && (
+              <div className="live-ping" style={{ fontSize:'0.72rem' }}>
+                <div className="live-ping-dot" />
+                {updateCount} ping{updateCount !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+
+          {/* Search Box */}
+          <div style={{ marginTop:'10px' }}>
+            <input
+              type="text"
+              className="form-control"
+              style={{ fontSize:'0.78rem', padding:'6px 10px', height:'auto' }}
+              placeholder="Search make, model, plate..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="map-sidebar-list">
-          {fleet.length === 0 ? (
+          {filteredFleet.length === 0 ? (
             <div className="empty-state" style={{ padding:'32px 16px' }}>
               <div className="empty-state-icon">🚗</div>
-              <div className="empty-state-title" style={{ fontSize:'0.85rem' }}>No fleet data</div>
-              <div className="empty-state-desc">Start the backend and simulator</div>
+              <div className="empty-state-title" style={{ fontSize:'0.85rem' }}>No matching vehicles</div>
+              <div className="empty-state-desc">Try clearing your search query</div>
             </div>
           ) : (
-            fleet.map(v => {
+            filteredFleet.map(v => {
               const loc = positions[v.id];
               const isLive = loc ? (Date.now() - loc.timestamp < 10_000) : false;
+              const isSelected = selectedId === v.id;
               return (
                 <div
                   key={v.id}
-                  className={`map-vehicle-item ${selectedId === v.id ? 'selected' : ''}`}
+                  className={`map-vehicle-item ${isSelected ? 'selected' : ''}`}
                   onClick={() => setSelectedId(v.id)}
+                  style={{ cursor:'pointer' }}
                 >
                   <div className="map-vehicle-icon">
                     {{ Car:'🚗', Scooter:'🛵', Motorcycle:'🏍️', Truck:'🚛', Van:'🚐' }[v.type] ?? '🚗'}
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div className="map-vehicle-name">{v.make} {v.model}</div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div className="map-vehicle-name">{v.make} {v.model}</div>
+                      <span className={`badge badge-${v.status.toLowerCase()}`} style={{ fontSize:'0.65rem', padding:'2px 6px' }}>
+                        {v.status}
+                      </span>
+                    </div>
                     <div style={{ fontSize:'0.72rem', color:'var(--text-dim)', marginBottom:'4px' }}>
-                      {v.registration}
+                      {v.registration} · {v.type}
                     </div>
                     {loc ? (
                       <>
@@ -106,12 +163,12 @@ export default function MapPage() {
                         {isLive && (
                           <div className="live-ping" style={{ marginTop:'4px' }}>
                             <div className="live-ping-dot" />
-                            Live
+                            Live Telemetry
                           </div>
                         )}
                       </>
                     ) : (
-                      <div className="map-no-coords">No GPS signal</div>
+                      <div className="map-no-coords">Stationary / Base Hub</div>
                     )}
                   </div>
                 </div>
@@ -149,5 +206,18 @@ export default function MapPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MapPage() {
+  return (
+    <Suspense fallback={
+      <div className="loading-center" style={{ minHeight:'calc(100vh - 68px)' }}>
+        <div className="spinner" />
+        <span>Loading telemetry map...</span>
+      </div>
+    }>
+      <MapContent />
+    </Suspense>
   );
 }

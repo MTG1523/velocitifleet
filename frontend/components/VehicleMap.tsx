@@ -206,10 +206,14 @@ export default function VehicleMap({ positions, fleetData, selectedId, onSelect 
     });
   }, [positions, fleetData, onSelect]);
 
-  // 4. Auto-open popup when selectedId changes
+  // 4. Auto-open popup and smoothly pan to vehicle when selectedId changes
   useEffect(() => {
     if (selectedId && markersRef.current[selectedId]) {
-      markersRef.current[selectedId].openPopup();
+      const marker = markersRef.current[selectedId];
+      marker.openPopup();
+      if (mapRef.current) {
+        mapRef.current.flyTo(marker.getLatLng(), 15, { animate: true, duration: 0.8 });
+      }
     }
   }, [selectedId]);
 

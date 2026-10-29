@@ -175,13 +175,42 @@ export default function LoginPage() {
                 : 'Live Google OAuth requires Firebase API keys in .env.local. Click below for instant guest access:'}
             </p>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm demo-btn"
-            onClick={handleDemoSignIn}
-          >
-            Instant Executive Demo Login →
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm demo-btn"
+              onClick={() => {
+                signInWithDemo('Alexander Vance (VIP Elite)');
+                router.push('/');
+              }}
+            >
+              👑 Instant VIP Executive Access →
+            </button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.78rem' }}
+                onClick={() => {
+                  signInWithDemo('Fleet Operations Manager');
+                  router.push('/');
+                }}
+              >
+                💼 Fleet Manager
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.78rem' }}
+                onClick={() => {
+                  signInWithDemo('Carlos Diaz (Driver)');
+                  router.push('/');
+                }}
+              >
+                🚗 Chauffeur Driver
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="login-footer">

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -8,9 +10,9 @@ interface Fleet {
   id: number; make: string; model: string; type: string;
   registration: string; status: string; dailyRate: number;
 }
-interface User  { id: number; name: string; phone: string; email: string; }
+interface User  { id: number | string; name: string; phone: string; email: string; role?: string; }
 interface Rental {
-  id: number; userId: number; fleetId: number; startTime: string;
+  id: number | string; userId: number | string; fleetId: number | string; startTime: string;
   endTime: string|null; status: string; totalCost: number|null;
 }
 
@@ -19,10 +21,12 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function RentalsPage() {
+  const { user } = useAuth();
   const [rentals,  setRentals]  = useState<Rental[]>([]);
   const [fleet,    setFleet]    = useState<Fleet[]>([]);
   const [users,    setUsers]    = useState<User[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [showNew,  setShowNew]  = useState(false);
   const [newForm,  setNewForm]  = useState({ userId:'', fleetId:'' });
   const [toast,    setToast]    = useState<{msg:string; type:'success'|'error'}|null>(null);
@@ -43,7 +47,7 @@ export default function RentalsPage() {
       setRentals(Array.isArray(r) ? r : []);
       setFleet(Array.isArray(f) ? f : []);
       setUsers(Array.isArray(u) ? u : []);
-    } catch { showToast('Failed to load — check backend connection', 'error'); }
+    } catch { showToast('Failed to load rentals — check backend connection', 'error'); }
     finally  { setLoading(false); }
   }, []);
 
@@ -51,31 +55,47 @@ export default function RentalsPage() {
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault();
+    const chosenUserId = newForm.userId || (user ? (user.dbId || user.uid) : '');
+    if (!chosenUserId) {
+      showToast('Please select a customer', 'error');
+      return;
+    }
+    if (!newForm.fleetId) {
+      showToast('Please select an available vehicle', 'error');
+      return;
+    }
+
+    setActionLoading(true);
     try {
       const res = await fetch(`${API}/rentals/checkout`, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ userId: String(newForm.userId), fleetId: String(newForm.fleetId) }),
+        body: JSON.stringify({ userId: String(chosenUserId), fleetId: String(newForm.fleetId) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Checkout failed');
       setShowNew(false);
       setNewForm({ userId:'', fleetId:'' });
-      showToast('Rental started successfully!', 'success');
+      showToast('Rental charter started successfully! 🚗', 'success');
       loadAll();
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setActionLoading(false);
     }
   }
 
   async function handleComplete(rentalId: number | string) {
+    setActionLoading(true);
     try {
       const res = await fetch(`${API}/rentals/${rentalId}/complete`, { method:'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to complete rental');
-      showToast(`Rental #${rentalId} completed. Cost: $${data.totalCost?.toFixed(2) ?? '—'}`, 'success');
+      showToast(`Rental #${rentalId} completed & returned. Total: $${data.totalCost?.toFixed(2) ?? '0.00'}`, 'success');
       loadAll();
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -87,7 +107,7 @@ export default function RentalsPage() {
   if (loading) return (
     <div className="loading-center" style={{ minHeight:'calc(100vh - 64px)' }}>
       <div className="spinner" />
-      <span>Loading rentals...</span>
+      <span>Loading rentals ledger...</span>
     </div>
   );
 
@@ -99,20 +119,30 @@ export default function RentalsPage() {
           <div className="page-hero-badge">✦ PREMIER LEASING & CHARTERS</div>
           <h1 className="page-title">Rentals & <span>Billing Ledger</span></h1>
           <p className="page-desc">
-            Process luxury vehicle checkouts, finalize concierge charters, and view lifetime account history.
+            Process luxury vehicle checkouts, finalize concierge charters, and view lifetime account history in Chennai.
           </p>
         </div>
 
         {/* ── Controls ──────────────────────────────────── */}
         <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap', marginBottom:'24px' }}>
-          <button className="btn btn-primary" onClick={() => setShowNew(true)}>+ New Rental</button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setNewForm({ userId: user ? String(user.dbId || user.uid) : '', fleetId: availableFleet[0]?.id ? String(availableFleet[0].id) : '' });
+              setShowNew(true);
+            }}
+            id="rentals-new-btn"
+          >
+            + New Rental
+          </button>
           {(['ALL','ACTIVE','COMPLETED'] as const).map(f => (
             <button key={f} className={`btn btn-ghost btn-sm ${filter===f ? 'active' : ''}`}
               style={filter===f ? { borderColor:'var(--accent-gold)', color:'var(--accent-gold-light)', background:'rgba(212,175,55,0.14)', boxShadow:'0 0 12px rgba(212,175,55,0.2)' } : {}}
               onClick={() => setFilter(f)}>{f}</button>
           ))}
           <span style={{ marginLeft:'auto', fontSize:'0.82rem', color:'var(--accent-gold-light)', fontWeight:600 }}>
-            {filteredRentals.length} rentals
+            {filteredRentals.length} of {rentalsList.length} records
           </span>
         </div>
 
@@ -120,8 +150,8 @@ export default function RentalsPage() {
         {filteredRentals.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📋</div>
-            <div className="empty-state-title">No {filter === 'ALL' ? '' : filter.toLowerCase() + ' '}rentals</div>
-            <div className="empty-state-desc">Click &quot;+ New Rental&quot; to get started</div>
+            <div className="empty-state-title">No {filter === 'ALL' ? '' : filter.toLowerCase() + ' '}rentals found</div>
+            <div className="empty-state-desc">Click &quot;+ New Rental&quot; to begin a luxury charter</div>
           </div>
         ) : (
           <div className="table-wrap">
@@ -140,8 +170,8 @@ export default function RentalsPage() {
               </thead>
               <tbody>
                 {filteredRentals.map(r => {
-                  const v = fleet.find(f => f.id === r.fleetId);
-                  const u = users.find(u => u.id === r.userId);
+                  const v = fleet.find(f => String(f.id) === String(r.fleetId));
+                  const u = users.find(u => String(u.id) === String(r.userId));
                   return (
                     <tr key={r.id}>
                       <td className="primary">#{r.id}</td>
@@ -150,22 +180,37 @@ export default function RentalsPage() {
                         {v && <span style={{ fontSize:'0.72rem', color:'var(--text-dim)', display:'block' }}>{v.registration}</span>}
                       </td>
                       <td>
-                        {u?.name ?? `User #${r.userId}`}
+                        {u?.name ?? (user ? `${user.displayName} (Me)` : `User #${r.userId}`)}
                         {u && <span style={{ fontSize:'0.72rem', color:'var(--text-dim)', display:'block' }}>{u.phone}</span>}
                       </td>
                       <td>{new Date(r.startTime).toLocaleString()}</td>
-                      <td>{r.endTime ? new Date(r.endTime).toLocaleString() : <span style={{ color:'var(--text-dim)' }}>—</span>}</td>
+                      <td>{r.endTime ? new Date(r.endTime).toLocaleString() : <span style={{ color:'var(--text-dim)' }}>In Progress</span>}</td>
                       <td style={{ color:'var(--accent-green)', fontWeight:600 }}>
                         {r.totalCost != null ? `$${r.totalCost.toFixed(2)}` : <span style={{ color:'var(--text-dim)' }}>—</span>}
                       </td>
                       <td><StatusBadge status={r.status} /></td>
                       <td>
-                        {r.status === 'ACTIVE' && (
-                          <button className="btn btn-danger btn-sm"
-                            onClick={() => handleComplete(r.id)}>
-                            ✓ Complete
-                          </button>
-                        )}
+                        <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+                          {r.status === 'ACTIVE' && (
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              style={{ padding:'4px 10px', fontSize:'0.75rem' }}
+                              onClick={() => handleComplete(r.id)}
+                              disabled={actionLoading}
+                            >
+                              ✓ Complete
+                            </button>
+                          )}
+                          <Link
+                            href={`/map?vehicle=${r.fleetId}`}
+                            className="btn btn-ghost btn-sm"
+                            style={{ padding:'4px 10px', fontSize:'0.75rem' }}
+                            title="Track vehicle on radar"
+                          >
+                            📍 Track
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -180,23 +225,40 @@ export default function RentalsPage() {
       {showNew && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowNew(false)}>
           <div className="modal">
-            <div className="modal-title">New Rental Checkout</div>
-            <div className="modal-subtitle">
-              Select a customer and an available vehicle to begin the rental
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+              <div>
+                <div className="modal-title">New Rental Checkout</div>
+                <div className="modal-subtitle">
+                  Select a customer and an available vehicle to begin the charter
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ padding:'4px 8px', fontSize:'1rem', lineHeight:1 }}
+                onClick={() => setShowNew(false)}
+              >
+                ✕
+              </button>
             </div>
             <form onSubmit={handleCheckout}>
               <div className="form-group">
-                <label className="form-label">Customer</label>
+                <label className="form-label">Client / Charter Account</label>
                 <select className="form-control" required
                   value={newForm.userId} onChange={e => setNewForm({...newForm, userId:e.target.value})}>
                   <option value="">Choose customer...</option>
+                  {user && (
+                    <option value={user.dbId || user.uid}>
+                      👑 {user.displayName || user.email} (Current User - {user.tier || 'VIP Elite'})
+                    </option>
+                  )}
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name} — {u.phone}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Vehicle</label>
+                <label className="form-label">Available Vehicle</label>
                 <select className="form-control" required
                   value={newForm.fleetId} onChange={e => setNewForm({...newForm, fleetId:e.target.value})}>
                   <option value="">Choose vehicle...</option>
@@ -209,13 +271,17 @@ export default function RentalsPage() {
               </div>
               {availableFleet.length === 0 && (
                 <p style={{ fontSize:'0.82rem', color:'var(--accent-orange)', marginBottom:'8px' }}>
-                  ⚠️ No vehicles currently available
+                  ⚠️ No vehicles currently available for rental
                 </p>
               )}
               <div className="modal-footer">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowNew(false)}>Cancel</button>
-                <button type="submit" className="btn btn-success" disabled={availableFleet.length === 0}>
-                  🔑 Checkout
+                <button
+                  type="submit"
+                  className="btn btn-success"
+                  disabled={availableFleet.length === 0 || actionLoading}
+                >
+                  {actionLoading ? 'Processing...' : '🔑 Checkout'}
                 </button>
               </div>
             </form>

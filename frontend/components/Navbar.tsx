@@ -27,9 +27,7 @@ export default function Navbar() {
           <Link href="/map"      className={`nav-link ${pathname === '/map'      ? 'active' : ''}`}>Live Map</Link>
           <Link href="/rentals"  className={`nav-link ${pathname === '/rentals'  ? 'active' : ''}`}>Rentals</Link>
           <Link href="/fleet"    className={`nav-link ${pathname === '/fleet'    ? 'active' : ''}`}>Fleet</Link>
-          {user && (
-            <Link href="/account" className={`nav-link ${pathname === '/account'  ? 'active' : ''}`}>Account</Link>
-          )}
+          <Link href="/account"  className={`nav-link ${pathname === '/account'  ? 'active' : ''}`}>Account</Link>
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>

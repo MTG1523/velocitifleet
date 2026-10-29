@@ -74,6 +74,20 @@ export default function AccountPage() {
     }
   };
 
+  const handleCompleteRental = async (rentalId: number | string) => {
+    try {
+      const res = await fetch(`/api/rentals/${rentalId}/complete`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to complete rental');
+      showToast(`Rental #${rentalId} returned! Final bill: $${data.totalCost?.toFixed(2) ?? '0.00'}`, 'success');
+      // Reload rentals
+      const updated = await fetch('/api/rentals').then(r => r.ok ? r.json() : []);
+      if (Array.isArray(updated)) setRentals(updated);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Error completing rental', 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading-center" style={{ minHeight: 'calc(100vh - 68px)' }}>
@@ -353,9 +367,25 @@ export default function AccountPage() {
                           </span>
                         </td>
                         <td>
-                          <Link href="/map" className="btn btn-ghost btn-sm" style={{ padding: '4px 10px' }}>
-                            Track 📍
-                          </Link>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {r.status === 'ACTIVE' && (
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                                onClick={() => handleCompleteRental(r.id)}
+                              >
+                                ✓ Return
+                              </button>
+                            )}
+                            <Link
+                              href={`/map?vehicle=${r.fleetId}`}
+                              className="btn btn-ghost btn-sm"
+                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                            >
+                              Track 📍
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );
