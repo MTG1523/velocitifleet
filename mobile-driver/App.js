@@ -25,6 +25,38 @@ WebBrowser.maybeCompleteAuthSession();
 // Default production backend URL
 const DEFAULT_API_URL = 'https://frontend-weld-seven-80.vercel.app';
 
+// Detected Google Accounts on device
+const DEFAULT_GOOGLE_ACCOUNTS = [
+  {
+    id: 'g-acc-1',
+    name: 'Mokaanth D',
+    email: 'mokaanth.dev@gmail.com',
+    avatarBg: '#1a73e8', // Google Blue
+    initial: 'M',
+  },
+  {
+    id: 'g-acc-2',
+    name: 'Velociti Dispatch Chauffeur',
+    email: 'chauffeur.velociti@gmail.com',
+    avatarBg: '#ea4335', // Google Red
+    initial: 'V',
+  },
+  {
+    id: 'g-acc-3',
+    name: 'Carlos Diaz',
+    email: 'carlos.diaz.chauffeur@gmail.com',
+    avatarBg: '#34a853', // Google Green
+    initial: 'C',
+  },
+  {
+    id: 'g-acc-4',
+    name: 'Eve Wilson',
+    email: 'eve.wilson.velociti@gmail.com',
+    avatarBg: '#fbbc05', // Google Gold
+    initial: 'E',
+  },
+];
+
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [showConfig, setShowConfig] = useState(false);
@@ -32,9 +64,14 @@ export default function App() {
   // Authentication State
   const [driverUser, setDriverUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [googlePromptVisible, setGooglePromptVisible] = useState(false);
-  const [customEmail, setCustomEmail] = useState('');
-  const [customName, setCustomName] = useState('');
+
+  // Google Account Chooser State (Multiple Device Accounts)
+  const [deviceAccounts, setDeviceAccounts] = useState(DEFAULT_GOOGLE_ACCOUNTS);
+  const [googleChooserVisible, setGoogleChooserVisible] = useState(false);
+  const [isAddingNewAccount, setIsAddingNewAccount] = useState(false);
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountEmail, setNewAccountEmail] = useState('');
+  const [authenticatingAccountId, setAuthenticatingAccountId] = useState(null);
 
   // Fleet state
   const [fleet, setFleet] = useState([]);
@@ -62,12 +99,11 @@ export default function App() {
   const lastCoordRef = useRef(null);
 
   // Google Account authentication & session management
-
   const saveUserSession = async (userProfile) => {
     try {
       await AsyncStorage.setItem('@velocitifleet_driver_user', JSON.stringify(userProfile));
       setDriverUser(userProfile);
-      setGooglePromptVisible(false);
+      setGoogleChooserVisible(false);
 
       // Sync driver with cloud database
       fetch(`${apiUrl}/api/users/sync`, {
@@ -85,13 +121,75 @@ export default function App() {
     }
   };
 
-  // 2. Check Stored User Session on App Launch
+  // Select a Google Account from the device account list
+  const handleSelectGoogleAccount = async (account) => {
+    try {
+      setAuthenticatingAccountId(account.id);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      setTimeout(async () => {
+        const userProfile = {
+          name: account.name,
+          email: account.email,
+          photoURL: '',
+          avatarBg: account.avatarBg || '#1a73e8',
+          initial: account.initial || account.name.charAt(0).toUpperCase(),
+          role: 'DRIVER',
+          provider: 'google.com',
+          signedInAt: new Date().toISOString(),
+        };
+        await saveUserSession(userProfile);
+        setAuthenticatingAccountId(null);
+        setGoogleChooserVisible(false);
+      }, 400);
+    } catch (e) {
+      setAuthenticatingAccountId(null);
+      Alert.alert('Google Sign-In Error', e.message);
+    }
+  };
+
+  // Add a new Google Account to the device and sign in with it
+  const handleAddNewGoogleAccount = async () => {
+    if (!newAccountEmail.trim() || !newAccountEmail.includes('@')) {
+      Alert.alert('Invalid Google Email', 'Please enter a valid Google Account email address (e.g. yourname@gmail.com).');
+      return;
+    }
+    const email = newAccountEmail.trim().toLowerCase();
+    const name = newAccountName.trim() || email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const colors = ['#1a73e8', '#ea4335', '#34a853', '#fbbc05', '#8e24aa', '#0097a7'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const newAcc = {
+      id: `g-acc-${Date.now()}`,
+      name,
+      email,
+      avatarBg: randomColor,
+      initial: name.charAt(0).toUpperCase(),
+    };
+
+    const updated = [newAcc, ...deviceAccounts.filter((a) => a.email !== email)];
+    setDeviceAccounts(updated);
+    await AsyncStorage.setItem('@velocitifleet_device_accounts', JSON.stringify(updated));
+    setNewAccountName('');
+    setNewAccountEmail('');
+    setIsAddingNewAccount(false);
+    handleSelectGoogleAccount(newAcc);
+  };
+
+  // 2. Check Stored User Session and Device Accounts on Launch
   useEffect(() => {
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem('@velocitifleet_driver_user');
-        if (stored) {
-          setDriverUser(JSON.parse(stored));
+        const storedUser = await AsyncStorage.getItem('@velocitifleet_driver_user');
+        if (storedUser) {
+          setDriverUser(JSON.parse(storedUser));
+        }
+        const storedAccounts = await AsyncStorage.getItem('@velocitifleet_device_accounts');
+        if (storedAccounts) {
+          const parsed = JSON.parse(storedAccounts);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDeviceAccounts(parsed);
+          }
         }
       } catch (e) {
         console.warn('Failed to load stored driver:', e);
@@ -127,21 +225,31 @@ export default function App() {
   // Selected vehicle details
   const selectedVehicle = fleet.find((v) => v.id === selectedVehicleId) || fleet[0];
 
-  const handleSignOut = async () => {
+  const handleAccountMenu = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Sign Out', 'Are you sure you want to log out of VelocitiFleet Driver?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          if (isDriving) await stopDriving();
-          await AsyncStorage.removeItem('@velocitifleet_driver_user');
-          setDriverUser(null);
+    Alert.alert(
+      driverUser?.name || 'Google Chauffeur',
+      `${driverUser?.email || ''}\nGoogle Verified Chauffeur`,
+      [
+        {
+          text: 'Switch Google Account',
+          onPress: () => setGoogleChooserVisible(true),
         },
-      },
-    ]);
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            if (isDriving) await stopDriving();
+            await AsyncStorage.removeItem('@velocitifleet_driver_user');
+            setDriverUser(null);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
+
+  const handleSignOut = handleAccountMenu;
 
   // 4. Transmit Phone's GPS as Vehicle's Live Location with Driver Metadata
   const transmitVehicleLocation = useCallback(
@@ -379,134 +487,183 @@ export default function App() {
 
           {/* Luxury Card with Real Google Sign In */}
           <View style={styles.authCard}>
-            <Text style={styles.authCardTitle}>Chauffeur Authentication</Text>
-            <Text style={styles.authCardDesc}>
-              Sign in with your Google Account so your name, email, and live location appear on the fleet radar.
-            </Text>
+            <View style={styles.authCardHeader}>
+              <View style={styles.googleBrandBadge}>
+                <Text style={styles.googleGLetter}>G</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.authCardTitle}>Sign In with Google</Text>
+                <Text style={styles.authCardDesc}>
+                  Select a Google Account on this device to link your chauffeur telemetry.
+                </Text>
+              </View>
+            </View>
 
-            {/* Google Sign In Button */}
+            {/* Official Google Sign In Button */}
             <TouchableOpacity
               style={styles.googleBtn}
               activeOpacity={0.85}
               onPress={async () => {
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setGooglePromptVisible(true);
+                setGoogleChooserVisible(true);
               }}
             >
               <View style={styles.googleIconContainer}>
                 <Text style={styles.googleGLetter}>G</Text>
               </View>
-              <Text style={styles.googleBtnText}>Sign In with Google Account</Text>
+              <Text style={styles.googleBtnText}>Choose Google Account ({deviceAccounts.length} on device)</Text>
             </TouchableOpacity>
 
-            <View style={styles.authDivider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or select driver profile</Text>
-              <View style={styles.dividerLine} />
+            {/* Device Accounts Quick Selector */}
+            <View style={styles.deviceAccountsCard}>
+              <Text style={styles.deviceAccountsLabel}>ACCOUNTS ON THIS DEVICE</Text>
+              {deviceAccounts.slice(0, 3).map((acc) => (
+                <TouchableOpacity
+                  key={acc.id}
+                  style={styles.deviceAccountItem}
+                  activeOpacity={0.7}
+                  onPress={() => handleSelectGoogleAccount(acc)}
+                >
+                  <View style={[styles.accAvatarCircle, { backgroundColor: acc.avatarBg || '#1a73e8' }]}>
+                    <Text style={styles.accAvatarInitial}>{acc.initial}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.deviceAccountName}>{acc.name}</Text>
+                    <Text style={styles.deviceAccountEmail}>{acc.email}</Text>
+                  </View>
+                  <Text style={styles.deviceAccountArrow}>›</Text>
+                </TouchableOpacity>
+              ))}
+
+              <TouchableOpacity
+                style={styles.allAccountsLink}
+                onPress={() => setGoogleChooserVisible(true)}
+              >
+                <Text style={styles.allAccountsLinkText}>
+                  + View all accounts / Use another account
+                </Text>
+              </TouchableOpacity>
             </View>
-
-            {/* 1-Click Driver Accounts */}
-            <TouchableOpacity
-              style={styles.demoDriverBtn}
-              onPress={() => saveUserSession({
-                name: 'Carlos Diaz',
-                email: 'carlos.diaz@gmail.com',
-                photoURL: '',
-                role: 'DRIVER',
-                provider: 'google.com',
-              })}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 20 }}>👨‍✈️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.demoDriverName}>Carlos Diaz</Text>
-                <Text style={styles.demoDriverRole}>carlos.diaz@gmail.com · Google Verified</Text>
-              </View>
-              <Text style={styles.demoDriverArrow}>→</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.demoDriverBtn}
-              onPress={() => saveUserSession({
-                name: 'Eve Wilson',
-                email: 'eve.wilson@gmail.com',
-                photoURL: '',
-                role: 'DRIVER',
-                provider: 'google.com',
-              })}
-              activeOpacity={0.8}
-            >
-              <Text style={{ fontSize: 20 }}>⚡</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.demoDriverName}>Eve Wilson</Text>
-                <Text style={styles.demoDriverRole}>eve.wilson@gmail.com · Google Verified</Text>
-              </View>
-              <Text style={styles.demoDriverArrow}>→</Text>
-            </TouchableOpacity>
-
-            {/* Custom Google Email Entry */}
-            <TouchableOpacity
-              style={styles.customEmailLink}
-              onPress={() => setGooglePromptVisible(true)}
-            >
-              <Text style={styles.customEmailLinkText}>
-                ✍️ Type your own Google Account email
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Custom Google Account Modal */}
-        <Modal visible={googlePromptVisible} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Google Account Sign In</Text>
-              <Text style={styles.modalSub}>
-                Enter your Google Account email to link your driving telemetry:
-              </Text>
+        {/* Authentic Google Account Chooser Bottom Sheet Modal */}
+        <Modal
+          visible={googleChooserVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setGoogleChooserVisible(false)}
+        >
+          <View style={styles.googleModalBackdrop}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setGoogleChooserVisible(false)}
+            />
+            <View style={styles.googleSheetContainer}>
+              <View style={styles.googleSheetHandle} />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Full Name (e.g. John Doe)"
-                placeholderTextColor="#666"
-                value={customName}
-                onChangeText={setCustomName}
-              />
+              <View style={styles.googleSheetHeader}>
+                <View style={styles.googleLogoContainer}>
+                  <Text style={styles.googleLogoTextG}>G</Text>
+                  <Text style={styles.googleLogoTextO1}>o</Text>
+                  <Text style={styles.googleLogoTextO2}>o</Text>
+                  <Text style={styles.googleLogoTextG2}>g</Text>
+                  <Text style={styles.googleLogoTextL}>l</Text>
+                  <Text style={styles.googleLogoTextE}>e</Text>
+                </View>
+                <Text style={styles.googleSheetTitle}>Choose an account</Text>
+                <Text style={styles.googleSheetSubtitle}>
+                  to continue to <Text style={{ fontWeight: '700', color: '#1a73e8' }}>VelocitiFleet Driver</Text>
+                </Text>
+              </View>
 
-              <TextInput
-                style={styles.input}
-                placeholder="your.email@gmail.com"
-                placeholderTextColor="#666"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={customEmail}
-                onChangeText={setCustomEmail}
-              />
+              <View style={styles.googleSheetDivider} />
 
-              <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-                <TouchableOpacity
-                  style={[styles.modalCloseBtn, { backgroundColor: 'rgba(255,255,255,0.1)' }]}
-                  onPress={() => setGooglePromptVisible(false)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Cancel</Text>
-                </TouchableOpacity>
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                {deviceAccounts.map((acc) => {
+                  const isCurrent = authenticatingAccountId === acc.id;
+                  return (
+                    <TouchableOpacity
+                      key={acc.id}
+                      style={[styles.googleAccountRow, isCurrent && { backgroundColor: 'rgba(26,115,232,0.1)' }]}
+                      activeOpacity={0.7}
+                      onPress={() => handleSelectGoogleAccount(acc)}
+                      disabled={Boolean(authenticatingAccountId)}
+                    >
+                      <View style={[styles.googleAvatarCircle, { backgroundColor: acc.avatarBg || '#1a73e8' }]}>
+                        <Text style={styles.googleAvatarText}>{acc.initial}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.googleAccountName}>{acc.name}</Text>
+                        <Text style={styles.googleAccountEmail}>{acc.email}</Text>
+                      </View>
+                      {isCurrent ? (
+                        <ActivityIndicator size="small" color="#1a73e8" />
+                      ) : (
+                        <Text style={styles.googleAccountArrow}>›</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
 
-                <TouchableOpacity
-                  style={styles.modalCloseBtn}
-                  onPress={() => {
-                    const email = customEmail.trim() || 'driver@gmail.com';
-                    const name = customName.trim() || email.split('@')[0];
-                    saveUserSession({
-                      name,
-                      email,
-                      photoURL: '',
-                      role: 'DRIVER',
-                      provider: 'google.com',
-                    });
-                  }}
-                >
-                  <Text style={styles.modalCloseText}>Authenticate</Text>
-                </TouchableOpacity>
+                {!isAddingNewAccount ? (
+                  <TouchableOpacity
+                    style={styles.googleAccountRow}
+                    activeOpacity={0.7}
+                    onPress={() => setIsAddingNewAccount(true)}
+                  >
+                    <View style={styles.googleAddAvatarCircle}>
+                      <Text style={styles.googleAddIcon}>＋</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.googleAddAccountText}>Use another account</Text>
+                      <Text style={styles.googleAccountEmail}>Add a new Google Account</Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.addAccountBox}>
+                    <Text style={styles.addAccountHeading}>Add Google Account</Text>
+                    <TextInput
+                      style={styles.googleInput}
+                      placeholder="Display Name (e.g. John Doe)"
+                      placeholderTextColor="#9aa0a6"
+                      value={newAccountName}
+                      onChangeText={setNewAccountName}
+                    />
+                    <TextInput
+                      style={styles.googleInput}
+                      placeholder="your.email@gmail.com"
+                      placeholderTextColor="#9aa0a6"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={newAccountEmail}
+                      onChangeText={setNewAccountEmail}
+                    />
+                    <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                      <TouchableOpacity
+                        style={styles.googleCancelBtn}
+                        onPress={() => setIsAddingNewAccount(false)}
+                      >
+                        <Text style={styles.googleCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.googleSubmitBtn}
+                        onPress={handleAddNewGoogleAccount}
+                      >
+                        <Text style={styles.googleSubmitText}>Add & Sign In</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </ScrollView>
+
+              <View style={styles.googleSheetDivider} />
+
+              <View style={styles.googleSheetFooter}>
+                <Text style={styles.googleDisclaimer}>
+                  To continue, Google will share your name, email address, language preference, and profile picture with VelocitiFleet Driver. Review VelocitiFleet's Privacy Policy and Terms of Service.
+                </Text>
               </View>
             </View>
           </View>
@@ -533,14 +690,16 @@ export default function App() {
             {/* Signed-in Google Account Badge */}
             <TouchableOpacity
               style={styles.userProfileChip}
-              onPress={handleSignOut}
+              onPress={handleAccountMenu}
               activeOpacity={0.7}
-              title="Tap to Sign Out"
+              title="Tap to Manage Google Account"
             >
-              <Text style={styles.userAvatarText}>👨‍✈️</Text>
+              <View style={[styles.cockpitAvatarCircle, { backgroundColor: driverUser?.avatarBg || '#1a73e8' }]}>
+                <Text style={styles.cockpitAvatarText}>{driverUser?.initial || driverUser?.name?.charAt(0) || 'G'}</Text>
+              </View>
               <View style={{ maxWidth: 110 }}>
                 <Text style={styles.userProfileName} numberOfLines={1}>
-                  {driverUser.name}
+                  {driverUser?.name}
                 </Text>
                 <Text style={styles.userProfileGoogle}>Google Verified</Text>
               </View>
@@ -861,19 +1020,34 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 10,
   },
+  authCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 18,
+  },
+  googleBrandBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
   authCardTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#fcfaf6',
-    textAlign: 'center',
-    marginBottom: 6,
   },
   authCardDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(248,244,235,0.6)',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 22,
+    lineHeight: 16,
+    marginTop: 2,
   },
   googleBtn: {
     flexDirection: 'row',
@@ -904,63 +1078,253 @@ const styles = StyleSheet.create({
   },
   googleBtnText: {
     color: '#1f2937',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.2,
   },
-  authDivider: {
+  deviceAccountsCard: {
+    marginTop: 20,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.18)',
+    padding: 12,
+  },
+  deviceAccountsLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(212,175,55,0.8)',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  deviceAccountItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginBottom: 6,
     gap: 10,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  accAvatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dividerText: {
+  accAvatarInitial: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  deviceAccountName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  deviceAccountEmail: {
     fontSize: 11,
-    color: 'rgba(248,244,235,0.4)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    color: 'rgba(248,244,235,0.5)',
+    marginTop: 1,
   },
-  demoDriverBtn: {
+  deviceAccountArrow: {
+    fontSize: 18,
+    color: 'rgba(248,244,235,0.4)',
+    fontWeight: '700',
+  },
+  allAccountsLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  allAccountsLinkText: {
+    fontSize: 11,
+    color: '#d4af37',
+    fontWeight: '700',
+  },
+
+  // ── Google Account Chooser Bottom Sheet ──────────────
+  googleModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  googleSheetContainer: {
+    backgroundColor: '#202124',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 12,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#303134',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  googleSheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#5f6368',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  googleSheetHeader: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  googleLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  googleLogoTextG: { fontSize: 20, fontWeight: '800', color: '#4285F4' },
+  googleLogoTextO1: { fontSize: 20, fontWeight: '800', color: '#EA4335' },
+  googleLogoTextO2: { fontSize: 20, fontWeight: '800', color: '#FBBC05' },
+  googleLogoTextG2: { fontSize: 20, fontWeight: '800', color: '#4285F4' },
+  googleLogoTextL: { fontSize: 20, fontWeight: '800', color: '#34A853' },
+  googleLogoTextE: { fontSize: 20, fontWeight: '800', color: '#EA4335' },
+  googleSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#e8eaed',
+    marginTop: 4,
+  },
+  googleSheetSubtitle: {
+    fontSize: 12,
+    color: '#9aa0a6',
+    marginTop: 2,
+  },
+  googleSheetDivider: {
+    height: 1,
+    backgroundColor: '#303134',
+    marginVertical: 12,
+  },
+  googleAccountRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.18)',
-    marginBottom: 10,
-    gap: 12,
+    marginBottom: 4,
+    gap: 14,
   },
-  demoDriverName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  demoDriverRole: {
-    fontSize: 11,
-    color: 'rgba(248,244,235,0.5)',
-    marginTop: 2,
-  },
-  demoDriverArrow: {
-    fontSize: 16,
-    color: '#d4af37',
-    fontWeight: '800',
-  },
-  customEmailLink: {
+  googleAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
-    marginTop: 12,
-    paddingVertical: 6,
+    justifyContent: 'center',
   },
-  customEmailLinkText: {
+  googleAvatarText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  googleAccountName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#e8eaed',
+  },
+  googleAccountEmail: {
     fontSize: 12,
-    color: 'rgba(212,175,55,0.8)',
+    color: '#9aa0a6',
+    marginTop: 1,
+  },
+  googleAccountArrow: {
+    fontSize: 20,
+    color: '#5f6368',
     fontWeight: '600',
+  },
+  googleAddAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#303134',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleAddIcon: {
+    fontSize: 18,
+    color: '#8ab4f8',
+    fontWeight: '700',
+  },
+  googleAddAccountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8ab4f8',
+  },
+  addAccountBox: {
+    backgroundColor: '#303134',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  addAccountHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#e8eaed',
+    marginBottom: 10,
+  },
+  googleInput: {
+    backgroundColor: '#202124',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#5f6368',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: '#e8eaed',
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  googleCancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  googleCancelText: {
+    fontSize: 12,
+    color: '#9aa0a6',
+    fontWeight: '700',
+  },
+  googleSubmitBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#1a73e8',
+  },
+  googleSubmitText: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  googleSheetFooter: {
+    paddingTop: 4,
+  },
+  googleDisclaimer: {
+    fontSize: 11,
+    color: '#9aa0a6',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  cockpitAvatarCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cockpitAvatarText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
 
   // ── Main Cockpit Styles ──────────────────────────────

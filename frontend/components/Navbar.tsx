@@ -27,6 +27,7 @@ export default function Navbar() {
           <Link href="/map"      className={`nav-link ${pathname === '/map'      ? 'active' : ''}`}>Live Map</Link>
           <Link href="/rentals"  className={`nav-link ${pathname === '/rentals'  ? 'active' : ''}`}>Rentals</Link>
           <Link href="/fleet"    className={`nav-link ${pathname === '/fleet'    ? 'active' : ''}`}>Fleet</Link>
+          <Link href="/emulator" className={`nav-link ${pathname === '/emulator' ? 'active' : ''}`}>📱 Driver App</Link>
           <Link href="/account"  className={`nav-link ${pathname === '/account'  ? 'active' : ''}`}>Account</Link>
         </div>
 
