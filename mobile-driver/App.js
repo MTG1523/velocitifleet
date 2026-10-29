@@ -12,19 +12,25 @@ import {
   TextInput,
   Modal,
   Platform,
+  Image,
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Default production backend URL
 const DEFAULT_API_URL = 'https://frontend-weld-seven-80.vercel.app';
 
-// Chennai fallback center coordinates
-const CHENNAI_DEFAULT = { latitude: 13.0827, longitude: 80.2707 };
-
 export default function App() {
   const [apiUrl, setApiUrl] = useState(DEFAULT_API_URL);
   const [showConfig, setShowConfig] = useState(false);
+
+  // Authentication State
+  const [driverUser, setDriverUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [googlePromptVisible, setGooglePromptVisible] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+  const [customName, setCustomName] = useState('');
 
   // Fleet state
   const [fleet, setFleet] = useState([]);
@@ -51,7 +57,23 @@ export default function App() {
   const simIntervalRef = useRef(null);
   const lastCoordRef = useRef(null);
 
-  // 1. Fetch Fleet Roster from Backend
+  // 1. Check Stored User Session on App Launch
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@velocitifleet_driver_user');
+        if (stored) {
+          setDriverUser(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.warn('Failed to load stored driver:', e);
+      } finally {
+        setAuthLoading(false);
+      }
+    })();
+  }, []);
+
+  // 2. Fetch Fleet Roster from Backend
   const loadFleet = useCallback(async () => {
     try {
       const res = await fetch(`${apiUrl}/api/fleet`);
@@ -69,13 +91,64 @@ export default function App() {
   }, [apiUrl, selectedVehicleId]);
 
   useEffect(() => {
-    loadFleet();
-  }, [loadFleet]);
+    if (driverUser) {
+      loadFleet();
+    }
+  }, [driverUser, loadFleet]);
 
   // Selected vehicle details
   const selectedVehicle = fleet.find((v) => v.id === selectedVehicleId) || fleet[0];
 
-  // 2. Transmit Phone's GPS as Vehicle's Live Location
+  // 3. Google Sign-In Action
+  const handleGoogleSignIn = async (name = 'Carlos Diaz', email = 'carlos.diaz@velocitifleet.com') => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const userProfile = {
+      name: name || 'Executive Driver',
+      email: email || 'driver@velocitifleet.com',
+      role: 'DRIVER',
+      provider: 'google.com',
+      avatar: '👨‍✈️',
+      signedInAt: new Date().toISOString(),
+    };
+
+    try {
+      await AsyncStorage.setItem('@velocitifleet_driver_user', JSON.stringify(userProfile));
+      setDriverUser(userProfile);
+      setGooglePromptVisible(false);
+
+      // Sync driver with cloud database
+      fetch(`${apiUrl}/api/users/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: `driver_${Date.now()}`,
+          email: userProfile.email,
+          displayName: userProfile.name,
+          role: 'DRIVER',
+        }),
+      }).catch(() => {});
+    } catch (err) {
+      Alert.alert('Sign In Error', err.message);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Sign Out', 'Are you sure you want to log out of VelocitiFleet Driver?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          if (isDriving) await stopDriving();
+          await AsyncStorage.removeItem('@velocitifleet_driver_user');
+          setDriverUser(null);
+        },
+      },
+    ]);
+  };
+
+  // 4. Transmit Phone's GPS as Vehicle's Live Location
   const transmitVehicleLocation = useCallback(
     async (lat, lng, speed = 0, heading = 0) => {
       if (!selectedVehicleId) return;
@@ -104,7 +177,7 @@ export default function App() {
     [apiUrl, selectedVehicleId]
   );
 
-  // 3. Start Driving & Transmitting Phone Location
+  // 5. Start Driving & Transmitting Phone Location
   const startDriving = async () => {
     if (!selectedVehicle) {
       Alert.alert('Select Vehicle', 'Please select which vehicle you are driving.');
@@ -166,7 +239,7 @@ export default function App() {
                 Math.sin(dLon / 2) *
                 Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            const distKm = (6371 * c);
+            const distKm = 6371 * c;
             if (distKm > 0.002) {
               setTripDistanceKm((prev) => parseFloat((prev + distKm).toFixed(2)));
             }
@@ -182,7 +255,7 @@ export default function App() {
     }
   };
 
-  // 4. End Drive & Park Vehicle
+  // 6. End Drive & Park Vehicle
   const stopDriving = async () => {
     if (locationSubRef.current) {
       locationSubRef.current.remove();
@@ -212,7 +285,7 @@ export default function App() {
     );
   };
 
-  // 5. Test Drive Simulator Mode (for testing without driving a car)
+  // 7. Test Drive Simulator Mode (for testing without driving a car)
   const startSimulation = async () => {
     setIsDriving(true);
     setIsSimulating(true);
@@ -223,9 +296,9 @@ export default function App() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Start near Marina Beach, Chennai
-    let lat = 13.0500;
+    let lat = 13.05;
     let lng = 80.2824;
-    let heading = 185; // heading South along the coast
+    let heading = 185; // heading South along coast
     let speed = 45; // 45 km/h driving speed
 
     setCurrentGps({ latitude: lat, longitude: lng, accuracy: 3 });
@@ -240,9 +313,8 @@ export default function App() {
 
     if (simIntervalRef.current) clearInterval(simIntervalRef.current);
     simIntervalRef.current = setInterval(() => {
-      // Simulate moving along Chennai road
       lat -= 0.00035;
-      lng -= 0.00010;
+      lng -= 0.0001;
       speed = Math.floor(40 + Math.random() * 18);
       heading = 180 + Math.floor(Math.random() * 10 - 5);
 
@@ -275,6 +347,152 @@ export default function App() {
     return dirs[Math.round(deg / 45) % 8];
   }
 
+  // Loading state
+  if (authLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#d4af37" />
+        <Text style={{ color: '#d4af37', marginTop: 12, fontWeight: '700' }}>
+          Initializing VelocitiFleet Driver...
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Authentication Screen: Google Sign In ─────────────
+  if (!driverUser) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#070709" />
+        <View style={styles.authContainer}>
+          {/* Logo & Header */}
+          <View style={styles.authHeader}>
+            <View style={styles.authEmblem}>
+              <Text style={{ fontSize: 40 }}>👑</Text>
+            </View>
+            <Text style={styles.authBrandTitle}>
+              VELOCITI<Text style={styles.brandGold}>DRIVER</Text>
+            </Text>
+            <Text style={styles.authBrandSub}>
+              Executive Telematics & Dispatch Cockpit
+            </Text>
+          </View>
+
+          {/* Luxury Card with Google Sign In */}
+          <View style={styles.authCard}>
+            <Text style={styles.authCardTitle}>Chauffeur Authentication</Text>
+            <Text style={styles.authCardDesc}>
+              Sign in with your Google account to connect your phone GPS directly to the fleet radar.
+            </Text>
+
+            {/* Official Google Sign In Button */}
+            <TouchableOpacity
+              style={styles.googleBtn}
+              activeOpacity={0.85}
+              onPress={() => handleGoogleSignIn('Carlos Diaz (Senior Chauffeur)', 'carlos.diaz@velocitifleet.com')}
+            >
+              <View style={styles.googleIconContainer}>
+                {/* Google Multi-color G */}
+                <Text style={styles.googleGLetter}>G</Text>
+              </View>
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </TouchableOpacity>
+
+            <View style={styles.authDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or quick driver profile</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* 1-Click Driver Persona Buttons */}
+            <TouchableOpacity
+              style={styles.demoDriverBtn}
+              onPress={() => handleGoogleSignIn('Carlos Diaz', 'carlos.diaz@velocitifleet.com')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 20 }}>👨‍✈️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.demoDriverName}>Carlos Diaz</Text>
+                <Text style={styles.demoDriverRole}>Senior Chauffeur · Chennai South</Text>
+              </View>
+              <Text style={styles.demoDriverArrow}>→</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.demoDriverBtn}
+              onPress={() => handleGoogleSignIn('Eve Wilson', 'eve.wilson@velocitifleet.com')}
+              activeOpacity={0.8}
+            >
+              <Text style={{ fontSize: 20 }}>⚡</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.demoDriverName}>Eve Wilson</Text>
+                <Text style={styles.demoDriverRole}>VIP Executive Driver · Airport Corridor</Text>
+              </View>
+              <Text style={styles.demoDriverArrow}>→</Text>
+            </TouchableOpacity>
+
+            {/* Custom Google Account Entry */}
+            <TouchableOpacity
+              style={styles.customEmailLink}
+              onPress={() => setGooglePromptVisible(true)}
+            >
+              <Text style={styles.customEmailLinkText}>
+                ✍️ Enter custom Google email or driver ID
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Custom Google Account Modal */}
+        <Modal visible={googlePromptVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Google Account Details</Text>
+              <Text style={styles.modalSub}>
+                Enter your Google name and work email address:
+              </Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name (e.g. Alexander Vance)"
+                placeholderTextColor="#666"
+                value={customName}
+                onChangeText={setCustomName}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Google Email (e.g. driver@gmail.com)"
+                placeholderTextColor="#666"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={customEmail}
+                onChangeText={setCustomEmail}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
+                <TouchableOpacity
+                  style={[styles.modalCloseBtn, { backgroundColor: 'rgba(255,255,255,0.1)' }]}
+                  onPress={() => setGooglePromptVisible(false)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => handleGoogleSignIn(customName || 'Google Driver', customEmail || 'driver@gmail.com')}
+                >
+                  <Text style={styles.modalCloseText}>Sign In with Google</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Main In-Vehicle Driver Cockpit ────────────────────
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#070709" />
@@ -288,26 +506,46 @@ export default function App() {
             <Text style={styles.brandSub}>In-Vehicle GPS Telemetry Broadcast</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => setShowConfig(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.settingsIcon}>⚙️</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            {/* Signed-in Google Account Badge */}
+            <TouchableOpacity
+              style={styles.userProfileChip}
+              onPress={handleSignOut}
+              activeOpacity={0.7}
+              title="Tap to Sign Out"
+            >
+              <Text style={styles.userAvatarText}>{driverUser.avatar || '👨‍✈️'}</Text>
+              <View style={{ maxWidth: 110 }}>
+                <Text style={styles.userProfileName} numberOfLines={1}>
+                  {driverUser.name}
+                </Text>
+                <Text style={styles.userProfileGoogle}>Google Verified</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsBtn}
+              onPress={() => setShowConfig(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingsIcon}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Vehicle Selector: Which car are you driving? ────── */}
         <View style={styles.card}>
-          <View style={styles.rowBetween}>
+          {/* Header with Title and Tracking Active on a clean NEW LINE */}
+          <View style={styles.cardHeaderCol}>
             <Text style={styles.cardTitle}>🚗 Active Vehicle Assignment</Text>
             {isDriving && (
-              <View style={styles.liveBeacon}>
+              <View style={styles.liveBeaconNewLine}>
                 <View style={styles.liveBeaconDot} />
                 <Text style={styles.liveBeaconText}>TRACKING ACTIVE</Text>
               </View>
             )}
           </View>
+
           <Text style={styles.cardDesc}>
             Select the vehicle you are operating. Your phone&apos;s GPS will become this vehicle&apos;s real-time position on the live fleet radar.
           </Text>
@@ -372,9 +610,10 @@ export default function App() {
 
         {/* ── In-Cab Driving Cockpit HUD (Speedometer & Telemetry) ── */}
         <View style={styles.cockpitCard}>
-          <View style={styles.cockpitHeader}>
+          {/* Header with Title and Streaming Status on a clean NEW LINE */}
+          <View style={styles.cockpitHeaderCol}>
             <Text style={styles.cockpitLabel}>LIVE VEHICLE TELEMETRY</Text>
-            <View style={styles.row}>
+            <View style={styles.cockpitStatusNewLine}>
               <View
                 style={[
                   styles.dot,
@@ -549,6 +788,158 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 36 : 10,
     paddingBottom: 40,
   },
+
+  // ── Authentication Screen Styles ─────────────────────
+  authContainer: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  authHeader: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  authEmblem: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: 'rgba(212,175,55,0.14)',
+    borderWidth: 2,
+    borderColor: '#d4af37',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#d4af37',
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  authBrandTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 1.5,
+  },
+  authBrandSub: {
+    fontSize: 13,
+    color: 'rgba(248,244,235,0.6)',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  authCard: {
+    backgroundColor: '#121217',
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212,175,55,0.25)',
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  authCardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fcfaf6',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  authCardDesc: {
+    fontSize: 12,
+    color: 'rgba(248,244,235,0.6)',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 22,
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  googleIconContainer: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleGLetter: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#4285F4',
+  },
+  googleBtnText: {
+    color: '#1f2937',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  authDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  dividerText: {
+    fontSize: 11,
+    color: 'rgba(248,244,235,0.4)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  demoDriverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.18)',
+    marginBottom: 10,
+    gap: 12,
+  },
+  demoDriverName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  demoDriverRole: {
+    fontSize: 11,
+    color: 'rgba(248,244,235,0.5)',
+    marginTop: 2,
+  },
+  demoDriverArrow: {
+    fontSize: 16,
+    color: '#d4af37',
+    fontWeight: '800',
+  },
+  customEmailLink: {
+    alignItems: 'center',
+    marginTop: 12,
+    paddingVertical: 6,
+  },
+  customEmailLinkText: {
+    fontSize: 12,
+    color: 'rgba(212,175,55,0.8)',
+    fontWeight: '600',
+  },
+
+  // ── Main Cockpit Styles ──────────────────────────────
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -572,9 +963,38 @@ const styles = StyleSheet.create({
     color: 'rgba(248,244,235,0.5)',
     marginTop: 2,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  userProfileChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212,175,55,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.3)',
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 6,
+  },
+  userAvatarText: {
+    fontSize: 16,
+  },
+  userProfileName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  userProfileGoogle: {
+    fontSize: 9,
+    color: '#34d399',
+    fontWeight: '700',
+  },
   settingsBtn: {
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: 'rgba(212,175,55,0.1)',
     borderWidth: 1,
@@ -583,7 +1003,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   settingsIcon: {
-    fontSize: 18,
+    fontSize: 16,
   },
   card: {
     backgroundColor: '#121217',
@@ -593,37 +1013,30 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 16,
   },
+
+  // NEW LINE WRAP FOR TITLE & TRACKING ACTIVE BADGE
+  cardHeaderCol: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 4,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: '#fcfaf6',
   },
-  cardDesc: {
-    fontSize: 12,
-    color: 'rgba(248,244,235,0.6)',
-    marginTop: 4,
-    marginBottom: 14,
-    lineHeight: 18,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  liveBeacon: {
+  liveBeaconNewLine: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(52,211,153,0.12)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(52,211,153,0.4)',
+    borderColor: 'rgba(52,211,153,0.45)',
     gap: 6,
+    alignSelf: 'flex-start',
   },
   liveBeaconDot: {
     width: 8,
@@ -633,8 +1046,17 @@ const styles = StyleSheet.create({
   },
   liveBeaconText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#34d399',
+    letterSpacing: 0.6,
+  },
+
+  cardDesc: {
+    fontSize: 12,
+    color: 'rgba(248,244,235,0.6)',
+    marginTop: 4,
+    marginBottom: 14,
+    lineHeight: 18,
   },
   vehicleScroll: {
     marginBottom: 14,
@@ -718,17 +1140,30 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 4,
   },
-  cockpitHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+
+  // NEW LINE WRAP FOR COCKPIT HEADER & STREAMING VEHICLE GPS BADGE
+  cockpitHeaderCol: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
     marginBottom: 14,
   },
   cockpitLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: 'rgba(248,244,235,0.4)',
-    letterSpacing: 1,
+    color: 'rgba(248,244,235,0.45)',
+    letterSpacing: 1.2,
+  },
+  cockpitStatusNewLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignSelf: 'flex-start',
   },
   dot: {
     width: 7,
@@ -739,7 +1174,9 @@ const styles = StyleSheet.create({
   cockpitStatus: {
     fontSize: 11,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
+
   speedometerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -830,7 +1267,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
   },
   startDrivingTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     color: '#070709',
     letterSpacing: 0.5,
@@ -857,7 +1294,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
   },
   stopDrivingTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 0.5,
@@ -935,7 +1372,7 @@ const styles = StyleSheet.create({
     padding: 12,
     color: '#ffffff',
     fontSize: 13,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   modalFooter: {
     alignItems: 'flex-end',
