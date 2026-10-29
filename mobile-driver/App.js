@@ -18,7 +18,6 @@ import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 
 // Enable WebBrowser auth session completion
 WebBrowser.maybeCompleteAuthSession();
@@ -62,45 +61,7 @@ export default function App() {
   const simIntervalRef = useRef(null);
   const lastCoordRef = useRef(null);
 
-  // 1. Google OAuth Hook
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: '1082531398242-velocitifleet.apps.googleusercontent.com',
-    webClientId: '1082531398242-velocitifleet.apps.googleusercontent.com',
-    iosClientId: '1082531398242-velocitifleet-ios.apps.googleusercontent.com',
-    androidClientId: '1082531398242-velocitifleet-android.apps.googleusercontent.com',
-    scopes: ['profile', 'email'],
-  });
-
-  // Handle Google OAuth Response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.accessToken) {
-        fetchGoogleUserProfile(authentication.accessToken);
-      }
-    }
-  }, [response]);
-
-  const fetchGoogleUserProfile = async (token) => {
-    try {
-      const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data && data.email) {
-        saveUserSession({
-          name: data.name || data.email.split('@')[0],
-          email: data.email,
-          photoURL: data.picture || '',
-          provider: 'google.com',
-          role: 'DRIVER',
-          signedInAt: new Date().toISOString(),
-        });
-      }
-    } catch (e) {
-      console.warn('Google profile fetch error:', e);
-    }
-  };
+  // Google Account authentication & session management
 
   const saveUserSession = async (userProfile) => {
     try {
@@ -423,22 +384,13 @@ export default function App() {
               Sign in with your Google Account so your name, email, and live location appear on the fleet radar.
             </Text>
 
-            {/* Real Google OAuth Prompt Button */}
+            {/* Google Sign In Button */}
             <TouchableOpacity
               style={styles.googleBtn}
               activeOpacity={0.85}
               onPress={async () => {
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                if (promptAsync) {
-                  try {
-                    await promptAsync();
-                  } catch {
-                    // Fallback to Google Account dialog
-                    setGooglePromptVisible(true);
-                  }
-                } else {
-                  setGooglePromptVisible(true);
-                }
+                setGooglePromptVisible(true);
               }}
             >
               <View style={styles.googleIconContainer}>
