@@ -27,12 +27,12 @@ function MapContent() {
   const searchParams = useSearchParams();
   const vehicleParam = searchParams.get('vehicle');
 
-  const { status, positions, lastUpdate, recentUpdates, trails } = useWebSocket();
+  const { status, positions, lastUpdate, recentUpdates, trails, driverPresence } = useWebSocket();
   const [fleet,        setFleet]        = useState<Fleet[]>([]);
   const [selectedId,   setSelectedId]   = useState<number | null>(null);
   const [updateCount,  setUpdateCount]  = useState(0);
   const [searchQuery,  setSearchQuery]  = useState('');
-  const [activeTab,    setActiveTab]    = useState<'vehicles' | 'stream'>('vehicles');
+  const [activeTab,    setActiveTab]    = useState<'vehicles' | 'stream' | 'drivers'>('vehicles');
 
   useEffect(() => {
     fetch(`${API}/fleet`)
@@ -110,14 +110,14 @@ function MapContent() {
           </div>
 
           {/* View Mode Tabs: Vehicles vs Live Telemetry Stream */}
-          <div style={{ display:'flex', gap:'6px', marginTop:'12px', borderBottom:'1px solid rgba(212,175,55,0.2)', paddingBottom:'8px' }}>
+          <div style={{ display:'flex', gap:'6px', marginTop:'12px', borderBottom:'1px solid rgba(212,175,55,0.2)', paddingBottom:'8px', flexWrap:'wrap' }}>
             <button
               type="button"
               className={`btn btn-sm ${activeTab === 'vehicles' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ fontSize:'0.75rem', padding:'4px 10px', flex:1 }}
               onClick={() => setActiveTab('vehicles')}
             >
-              🚗 Fleet Roster ({vehiclesWithPosition.length})
+              🚗 Fleet ({vehiclesWithPosition.length})
             </button>
             <button
               type="button"
@@ -125,7 +125,15 @@ function MapContent() {
               style={{ fontSize:'0.75rem', padding:'4px 10px', flex:1 }}
               onClick={() => setActiveTab('stream')}
             >
-              ⚡ Live Pings ({recentUpdates.length})
+              ⚡ Pings ({recentUpdates.length})
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${activeTab === 'drivers' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize:'0.75rem', padding:'4px 10px', flex:1 }}
+              onClick={() => setActiveTab('drivers')}
+            >
+              👨‍✈️ Drivers ({Object.values(driverPresence).filter(d => d.online).length})
             </button>
           </div>
 
@@ -269,6 +277,84 @@ function MapContent() {
                       <span style={{ fontFamily:'monospace' }}>{u.latitude.toFixed(4)}, {u.longitude.toFixed(4)}</span>
                       <span style={{ color:'#34d399', fontWeight:700 }}>⚡ {u.speed.toFixed(1)} km/h</span>
                       <span>🧭 {u.heading}°</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* ── Tab 3: Live Drivers Presence ───────────────────────── */}
+        {activeTab === 'drivers' && (
+          <div className="map-sidebar-list">
+            <div style={{ padding:'10px 14px', fontSize:'0.75rem', color:'var(--text-muted)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+              Real-time driver presence heartbeats from mobile apps via Firebase:
+            </div>
+
+            {Object.keys(driverPresence).length === 0 ? (
+              <div className="empty-state" style={{ padding:'32px 16px' }}>
+                <div className="empty-state-icon">👨‍✈️</div>
+                <div className="empty-state-title" style={{ fontSize:'0.85rem' }}>No drivers online</div>
+                <div className="empty-state-desc">Driver mobile apps will appear here when active</div>
+              </div>
+            ) : (
+              Object.values(driverPresence).map((d, i) => {
+                const vehicle = fleet.find(f => f.id === d.fleetId);
+                const secondsAgo = d.lastSeen ? Math.max(0, Math.round((Date.now() - d.lastSeen) / 1000)) : null;
+                return (
+                  <div
+                    key={d.driverEmail || i}
+                    style={{
+                      padding:'12px 14px',
+                      borderBottom:'1px solid rgba(255,255,255,0.05)',
+                      cursor: d.fleetId ? 'pointer' : 'default',
+                    }}
+                    onClick={() => d.fleetId && setSelectedId(d.fleetId)}
+                  >
+                    <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                      {/* Avatar */}
+                      <div style={{
+                        width:34, height:34, borderRadius:'50%',
+                        background: d.online ? 'rgba(52,211,153,0.2)' : 'rgba(255,255,255,0.08)',
+                        border: `2px solid ${d.online ? '#34d399' : 'rgba(255,255,255,0.15)'}`,
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        fontSize:'1.1rem', flexShrink:0,
+                      }}>
+                        {d.driverPhoto
+                          ? <img src={d.driverPhoto} alt="" style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
+                          : '👤'
+                        }
+                      </div>
+
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <span style={{ fontWeight:800, fontSize:'0.82rem', color:'var(--accent-gold-light)' }} className="text-truncate">
+                            {d.driverName}
+                          </span>
+                          <span style={{
+                            fontSize:'0.65rem', fontWeight:700, padding:'2px 6px', borderRadius:4,
+                            background: d.online ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.12)',
+                            color: d.online ? '#34d399' : '#f87171',
+                            border: `1px solid ${d.online ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.2)'}`,
+                          }}>
+                            {d.online ? '● ONLINE' : '○ OFFLINE'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize:'0.7rem', color:'var(--text-dim)', marginTop:2 }} className="text-truncate">
+                          {d.driverEmail}
+                        </div>
+                        {vehicle && (
+                          <div style={{ fontSize:'0.72rem', color:'#f7e199', marginTop:3 }}>
+                            🚗 {vehicle.make} {vehicle.model} · {vehicle.registration}
+                          </div>
+                        )}
+                        {secondsAgo !== null && (
+                          <div style={{ fontSize:'0.68rem', color:'var(--text-muted)', marginTop:2 }}>
+                            ⏱️ Last ping: {secondsAgo < 60 ? `${secondsAgo}s ago` : `${Math.round(secondsAgo/60)}m ago`}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

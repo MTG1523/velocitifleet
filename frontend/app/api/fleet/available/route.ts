@@ -1,36 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getFirestore } from '@/lib/firebase-admin';
-import type { FleetItem } from '../route';
+import { getFirebaseFleet } from '@/lib/firebase-rtdb';
 
-function docToFleet(doc: FirebaseFirestore.DocumentSnapshot): FleetItem {
-  const d = doc.data()!;
-  return {
-    id:           doc.id,
-    make:         d.make,
-    model:        d.model,
-    type:         d.type,
-    registration: d.registration,
-    status:       d.status,
-    year:         d.year,
-    dailyRate:    d.dailyRate,
-    imageUrl:     d.imageUrl ?? '',
-    createdAt:    d.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-  };
-}
-
-/** GET /api/fleet/available — only AVAILABLE vehicles */
+/** GET /api/fleet/available — only AVAILABLE vehicles directly from Firebase */
 export async function GET() {
   try {
-    const db = getFirestore();
-    const snap = await db
-      .collection('fleet')
-      .where('status', '==', 'AVAILABLE')
-      .orderBy('createdAt', 'asc')
-      .get();
-    const items: FleetItem[] = snap.docs.map(docToFleet);
-    return NextResponse.json(items);
+    const fleet = await getFirebaseFleet();
+    const available = fleet.filter(v => v.status === 'AVAILABLE');
+    return NextResponse.json(available);
   } catch (err) {
     console.error('[GET /api/fleet/available]', err);
-    return NextResponse.json({ error: 'Failed to fetch available fleet' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch available fleet from Firebase' }, { status: 500 });
   }
 }

@@ -1,65 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@/lib/firebase-admin';
-import { docToRental } from '@/app/api/rentals/route';
+import { rtdbGet, rtdbPatch, RentalRecord, FleetVehicle } from '@/lib/firebase-rtdb';
 
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * POST /api/rentals/[id]/end — end an active rental.
- *
- * Billing: totalCost = ceil(durationMs / 86_400_000) * dailyRate
- *   e.g. 25 hours at $50/day → ceil(25/24) = 2 days → $100
- *
- * Transaction: update rental (status→COMPLETED, endTime, totalCost)
- *              + update fleet (status→AVAILABLE) atomically.
+ * POST /api/rentals/[id]/end — end an active rental directly in Firebase.
  */
 export async function POST(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const db         = getFirestore();
-    const rentalsCol = db.collection('rentals');
-    const rentalRef  = rentalsCol.doc(id);
+    const rental = await rtdbGet<RentalRecord>(`rentals/${id}`);
+    if (!rental) {
+      return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
+    }
+    if (rental.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Rental is not active' }, { status: 409 });
+    }
 
-    await db.runTransaction(async (tx) => {
-      const rentalDoc = await tx.get(rentalRef);
-      if (!rentalDoc.exists) {
-        throw Object.assign(new Error('Rental not found'), { code: 404 });
-      }
-      const rental = rentalDoc.data()!;
-      if (rental.status !== 'ACTIVE') {
-        throw Object.assign(new Error('Rental is not active'), { code: 409 });
-      }
+    const vehicle = await rtdbGet<FleetVehicle>(`fleet/${rental.fleetId}`);
+    const dailyRate = vehicle?.dailyRate ?? 120;
+    const startMs = new Date(rental.startTime).getTime();
+    const endMs = Date.now();
+    const diffMs = Math.max(0, endMs - startMs);
+    const days = Math.max(1, Math.ceil(diffMs / 86_400_000));
+    const totalCost = parseFloat((days * dailyRate).toFixed(2));
 
-      const fleetRef = db.collection('fleet').doc(String(rental.fleetId));
-      const fleetDoc = await tx.get(fleetRef);
-      if (!fleetDoc.exists) {
-        throw Object.assign(new Error('Vehicle not found'), { code: 404 });
-      }
+    const updatedRental: Partial<RentalRecord> = {
+      status: 'COMPLETED',
+      endTime: new Date(endMs).toISOString(),
+      totalCost,
+    };
 
-      const dailyRate: number  = fleetDoc.data()!.dailyRate ?? 0;
-      const startMs: number    = typeof rental.startTime?.toDate === 'function'
-        ? rental.startTime.toDate().getTime()
-        : (rental.startTime ? new Date(rental.startTime).getTime() : Date.now());
-      const endMs: number      = Date.now();
-      const diffMs: number     = Math.max(0, endMs - startMs);
-      const days: number       = Math.max(1, Math.ceil(diffMs / 86_400_000));
-      const totalCost: number  = parseFloat((days * dailyRate).toFixed(2));
+    // Update rental & free vehicle back to AVAILABLE in Firebase
+    await rtdbPatch(`rentals/${id}`, updatedRental);
+    await rtdbPatch(`fleet/${rental.fleetId}`, { status: 'AVAILABLE' });
 
-      tx.update(rentalRef, {
-        status:    'COMPLETED',
-        endTime:   new Date(endMs),
-        totalCost,
-      });
-      tx.update(fleetRef, { status: 'AVAILABLE' });
-    });
-
-    const updated = await rentalRef.get();
-    return NextResponse.json(docToRental(updated));
-  } catch (err: unknown) {
-    const e = err as { code?: number; message?: string };
-    if (e?.code === 404) return NextResponse.json({ error: e.message }, { status: 404 });
-    if (e?.code === 409) return NextResponse.json({ error: e.message }, { status: 409 });
+    const finalRecord = await rtdbGet<RentalRecord>(`rentals/${id}`);
+    return NextResponse.json(finalRecord);
+  } catch (err: any) {
     console.error('[POST /api/rentals/[id]/end]', err);
-    return NextResponse.json({ error: 'Failed to end rental' }, { status: 500 });
+    return NextResponse.json({ error: err?.message || 'Failed to end rental in Firebase' }, { status: 500 });
   }
 }

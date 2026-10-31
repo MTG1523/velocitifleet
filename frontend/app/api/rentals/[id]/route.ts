@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@/lib/firebase-admin';
-import { docToRental } from '@/app/api/rentals/route';
+import { rtdbGet, RentalRecord } from '@/lib/firebase-rtdb';
 
 type Params = { params: Promise<{ id: string }> };
 
-/** GET /api/rentals/[id] — single rental */
+/** GET /api/rentals/[id] — single rental directly from Firebase */
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const db  = getFirestore();
-    const doc = await db.collection('rentals').doc(id).get();
-    if (!doc.exists) {
+    const rental = await rtdbGet<RentalRecord>(`rentals/${id}`);
+    if (!rental) {
       return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
     }
-    return NextResponse.json(docToRental(doc));
+    return NextResponse.json(rental);
   } catch (err) {
     console.error('[GET /api/rentals/[id]]', err);
-    return NextResponse.json({ error: 'Failed to fetch rental' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch rental from Firebase' }, { status: 500 });
   }
 }

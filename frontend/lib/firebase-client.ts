@@ -15,13 +15,13 @@ import { getDatabase, type Database } from 'firebase/database';
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  databaseURL:       process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyB9g8If5k_1jiuFGmAWutclIsN4r7deikg',
+  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'velocitifleet.firebaseapp.com',
+  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'velocitifleet',
+  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'velocitifleet.firebasestorage.app',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '35960102430',
+  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:35960102430:web:748da6bf6cdf83b012980f',
+  databaseURL:       process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || 'https://velocitifleet-default-rtdb.firebaseio.com',
 };
 
 export function isFirebaseAuthConfigured(): boolean {
@@ -39,20 +39,12 @@ function getClientApp(): FirebaseApp {
   if (getApps().length > 0) {
     return getApps()[0];
   }
-  return initializeApp({
-    apiKey:            firebaseConfig.apiKey || 'demo-api-key',
-    authDomain:        firebaseConfig.authDomain || 'velocitifleet-demo.firebaseapp.com',
-    projectId:         firebaseConfig.projectId || 'velocitifleet-demo',
-    storageBucket:     firebaseConfig.storageBucket || 'velocitifleet-demo.appspot.com',
-    messagingSenderId: firebaseConfig.messagingSenderId || '1234567890',
-    appId:             firebaseConfig.appId || '1:1234567890:web:demo',
-    databaseURL:       firebaseConfig.databaseURL || 'https://velocitifleet-demo-default-rtdb.firebaseio.com',
-  });
+  return initializeApp(firebaseConfig);
 }
 
 function initClientDb(): Database {
   const app = getClientApp();
-  const dbUrl = firebaseConfig.databaseURL || 'https://velocitifleet-demo-default-rtdb.firebaseio.com';
+  const dbUrl = firebaseConfig.databaseURL;
   try {
     return getDatabase(app, dbUrl);
   } catch {

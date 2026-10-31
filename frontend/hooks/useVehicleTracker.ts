@@ -27,23 +27,41 @@ export interface LocationUpdate {
   accuracy?: number;
 }
 
+export interface DriverPresence {
+  driverName:  string;
+  driverEmail: string;
+  driverPhoto: string;
+  fleetId:     number | null;
+  online:      boolean;
+  lastSeen:    number;
+}
+
 /** Map of fleetId → latest location update */
 export type VehiclePositions = Record<number, LocationUpdate>;
 
+/** Map of driverEmail → presence record */
+export type PresenceMap = Record<string, DriverPresence>;
+
 export function useVehicleTracker() {
-  const [status,        setStatus]        = useState<WsStatus>('connecting');
-  const [positions,     setPositions]     = useState<VehiclePositions>({});
-  const [lastUpdate,    setLastUpdate]    = useState<LocationUpdate | null>(null);
-  const [recentUpdates, setRecentUpdates] = useState<LocationUpdate[]>([]);
-  const [trails,        setTrails]        = useState<Record<number, Array<[number, number]>>>({});
+  const [status,          setStatus]          = useState<WsStatus>('connecting');
+  const [positions,       setPositions]       = useState<VehiclePositions>({});
+  const [lastUpdate,      setLastUpdate]      = useState<LocationUpdate | null>(null);
+  const [recentUpdates,   setRecentUpdates]   = useState<LocationUpdate[]>([]);
+  const [trails,          setTrails]          = useState<Record<number, Array<[number, number]>>>({});
+  const [driverPresence,  setDriverPresence]  = useState<PresenceMap>({});
 
   const telemetryRef = useRef(ref(clientDb, 'telemetry'));
+  const presenceRef  = useRef(ref(clientDb, 'driver_presence'));
 
   useEffect(() => {
     let isMounted = true;
     let pollInterval: NodeJS.Timeout | null = null;
 
     const processUpdate = (update: LocationUpdate) => {
+      if (!Number.isFinite(update.latitude) || !Number.isFinite(update.longitude) || isNaN(update.latitude) || isNaN(update.longitude)) {
+        return;
+      }
+
       // Add to recent updates stream (keep max 30)
       setRecentUpdates((prev) => {
         const next = [update, ...prev.filter((p) => p.timestamp !== update.timestamp)];
@@ -76,13 +94,24 @@ export function useVehicleTracker() {
         const next: VehiclePositions = {};
         let newest: LocationUpdate | null = null;
 
-        for (const [, val] of Object.entries(locSource as Record<string, any>)) {
+        const entries = Array.isArray(locSource)
+          ? locSource.map((v, i) => [String(i), v] as [string, any])
+          : Object.entries(locSource as Record<string, any>);
+
+        for (const [, val] of entries) {
           if (!val || typeof val !== 'object') continue;
+          const lat = Number(val.latitude ?? val.lat);
+          const lng = Number(val.longitude ?? val.lng);
+          const fId = Number(val.fleetId);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng) || isNaN(lat) || isNaN(lng) || !Number.isFinite(fId) || isNaN(fId)) {
+            continue; // Skip invalid or corrupted points
+          }
+
           const update: LocationUpdate = {
             type:        'LOCATION_UPDATE',
-            fleetId:     Number(val.fleetId),
-            latitude:    Number(val.latitude),
-            longitude:   Number(val.longitude),
+            fleetId:     fId,
+            latitude:    lat,
+            longitude:   lng,
             speed:       Number(val.speed ?? 0),
             heading:     Number(val.heading ?? 0),
             timestamp:   Number(val.updatedAt ?? Date.now()),
@@ -130,13 +159,24 @@ export function useVehicleTracker() {
           const next: VehiclePositions = {};
           let newest: LocationUpdate | null = null;
 
-          for (const [, value] of Object.entries(raw)) {
+          const entries = Array.isArray(raw)
+            ? raw.map((v, i) => [String(i), v] as [string, any])
+            : Object.entries(raw);
+
+          for (const [, value] of entries) {
             if (!value || typeof value !== 'object') continue;
+            const lat = Number(value.latitude ?? value.lat);
+            const lng = Number(value.longitude ?? value.lng);
+            const fId = Number(value.fleetId);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || isNaN(lat) || isNaN(lng) || !Number.isFinite(fId) || isNaN(fId)) {
+              continue; // Skip invalid or corrupted points
+            }
+
             const update: LocationUpdate = {
               type:        'LOCATION_UPDATE',
-              fleetId:     Number(value.fleetId),
-              latitude:    Number(value.latitude),
-              longitude:   Number(value.longitude),
+              fleetId:     fId,
+              latitude:    lat,
+              longitude:   lng,
               speed:       Number(value.speed ?? 0),
               heading:     Number(value.heading ?? 0),
               timestamp:   Number(value.updatedAt ?? Date.now()),
@@ -173,6 +213,33 @@ export function useVehicleTracker() {
       }
     }
 
+    // ── Driver Presence Listener (/driver_presence) ────────────────
+    let unsubPresence: (() => void) | null = null;
+    try {
+      const pRef = presenceRef.current;
+      unsubPresence = onValue(
+        pRef,
+        (snap) => {
+          if (!isMounted || !snap.exists()) return;
+          const raw = snap.val() as Record<string, any>;
+          const next: PresenceMap = {};
+          for (const [key, val] of Object.entries(raw)) {
+            if (!val || typeof val !== 'object') continue;
+            next[val.driverEmail || key] = {
+              driverName:  val.driverName  || 'Executive Driver',
+              driverEmail: val.driverEmail || '',
+              driverPhoto: val.driverPhoto || '',
+              fleetId:     val.fleetId     ? Number(val.fleetId) : null,
+              online:      Boolean(val.online),
+              lastSeen:    Number(val.lastSeen || 0),
+            };
+          }
+          setDriverPresence(next);
+        },
+        (_err) => {} // non-fatal
+      );
+    } catch {}
+
     return () => {
       isMounted = false;
       if (pollInterval) clearInterval(pollInterval);
@@ -180,10 +247,13 @@ export function useVehicleTracker() {
         if (unsubscribe) unsubscribe();
         else off(dbRef);
       } catch {}
+      try {
+        if (unsubPresence) unsubPresence();
+      } catch {}
     };
   }, []);
 
-  return { status, positions, lastUpdate, recentUpdates, trails };
+  return { status, positions, lastUpdate, recentUpdates, trails, driverPresence };
 }
 
 // Alias for backwards compatibility

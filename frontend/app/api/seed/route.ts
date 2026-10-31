@@ -1,68 +1,34 @@
 import { NextResponse } from 'next/server';
-import { getFirestore } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { rtdbPut, INITIAL_FLEET_DATA } from '@/lib/firebase-rtdb';
 
-// ── Seed data — mirrors database/schema.sql ───────────────────────────────
-
-const SEED_FLEET = [
-  { make: 'Tesla',  model: 'Model 3',  type: 'Car',        registration: 'VF-001', status: 'AVAILABLE',   year: 2023, dailyRate: 89.99,  imageUrl: '' },
-  { make: 'Toyota', model: 'Corolla',  type: 'Car',        registration: 'VF-002', status: 'AVAILABLE',   year: 2022, dailyRate: 45.00,  imageUrl: '' },
-  { make: 'Honda',  model: 'CBR 600',  type: 'Motorcycle', registration: 'VF-003', status: 'AVAILABLE',   year: 2023, dailyRate: 35.00,  imageUrl: '' },
-  { make: 'Vespa',  model: 'GTS 300',  type: 'Scooter',    registration: 'VF-004', status: 'RENTED',      year: 2022, dailyRate: 25.00,  imageUrl: '' },
-  { make: 'Ford',   model: 'Transit',  type: 'Van',        registration: 'VF-005', status: 'AVAILABLE',   year: 2021, dailyRate: 75.00,  imageUrl: '' },
-  { make: 'BMW',    model: 'i4',       type: 'Car',        registration: 'VF-006', status: 'MAINTENANCE', year: 2024, dailyRate: 120.00, imageUrl: '' },
-  { make: 'Toyota', model: 'HiLux',   type: 'Truck',      registration: 'VF-007', status: 'AVAILABLE',   year: 2021, dailyRate: 95.00,  imageUrl: '' },
-  { make: 'Yamaha', model: 'MT-07',   type: 'Motorcycle', registration: 'VF-008', status: 'AVAILABLE',   year: 2023, dailyRate: 30.00,  imageUrl: '' },
-];
-
-const SEED_USERS = [
-  { name: 'Alice Johnson', phone: '+1-555-0101', email: 'alice@velocitifleet.com',  role: 'ADMIN'    },
-  { name: 'Bob Smith',     phone: '+1-555-0102', email: 'bob@velocitifleet.com',    role: 'CUSTOMER' },
-  { name: 'Carlos Diaz',  phone: '+1-555-0103', email: 'carlos@velocitifleet.com', role: 'DRIVER'   },
-  { name: 'Diana Park',   phone: '+1-555-0104', email: 'diana@velocitifleet.com',  role: 'CUSTOMER' },
-  { name: 'Eve Wilson',   phone: '+1-555-0105', email: 'eve@velocitifleet.com',    role: 'DRIVER'   },
-];
+const INITIAL_TELEMETRY: Record<string, any> = {
+  '1': { fleetId: 1, latitude: 13.0500, longitude: 80.2824, speed: 42, heading: 20,  updatedAt: Date.now() },
+  '2': { fleetId: 2, latitude: 13.0418, longitude: 80.2341, speed: 28, heading: 180, updatedAt: Date.now() },
+  '3': { fleetId: 3, latitude: 13.0850, longitude: 80.2100, speed: 52, heading: 90,  updatedAt: Date.now() },
+  '4': { fleetId: 4, latitude: 12.9897, longitude: 80.2479, speed: 34, heading: 195, updatedAt: Date.now() },
+  '5': { fleetId: 5, latitude: 12.9941, longitude: 80.1709, speed: 48, heading: 45,  updatedAt: Date.now() },
+  '6': { fleetId: 6, latitude: 13.0600, longitude: 80.2400, speed: 0,  heading: 0,   updatedAt: Date.now() },
+  '7': { fleetId: 7, latitude: 12.9830, longitude: 80.2594, speed: 55, heading: 180, updatedAt: Date.now() },
+  '8': { fleetId: 8, latitude: 12.9815, longitude: 80.2180, speed: 38, heading: 270, updatedAt: Date.now() },
+};
 
 /**
- * POST /api/seed — idempotent seed for Firestore.
- * Checks for existing docs by unique key before inserting.
- * Returns: { seeded: { fleet: N, users: N } }
+ * POST /api/seed — Seeds all core data directly into Firebase Realtime Database.
  */
 export async function POST() {
   try {
-    const db = getFirestore();
-    let fleetSeeded = 0;
-    let usersSeeded = 0;
+    await Promise.all([
+      rtdbPut('fleet', INITIAL_FLEET_DATA),
+      rtdbPut('telemetry', INITIAL_TELEMETRY),
+    ]);
 
-    // Seed fleet — check by registration
-    for (const vehicle of SEED_FLEET) {
-      const existing = await db
-        .collection('fleet')
-        .where('registration', '==', vehicle.registration)
-        .limit(1)
-        .get();
-      if (existing.empty) {
-        await db.collection('fleet').add({ ...vehicle, createdAt: FieldValue.serverTimestamp() });
-        fleetSeeded++;
-      }
-    }
-
-    // Seed users — check by email
-    for (const user of SEED_USERS) {
-      const existing = await db
-        .collection('users')
-        .where('email', '==', user.email)
-        .limit(1)
-        .get();
-      if (existing.empty) {
-        await db.collection('users').add({ ...user, createdAt: FieldValue.serverTimestamp() });
-        usersSeeded++;
-      }
-    }
-
-    return NextResponse.json({ seeded: { fleet: fleetSeeded, users: usersSeeded } });
-  } catch (err) {
+    return NextResponse.json({
+      ok: true,
+      message: 'All fleet, telemetry, and platform data successfully seeded directly in Firebase RTDB!',
+      vehiclesCount: Object.keys(INITIAL_FLEET_DATA).length,
+    });
+  } catch (err: any) {
     console.error('[POST /api/seed]', err);
-    return NextResponse.json({ error: 'Seed failed' }, { status: 500 });
+    return NextResponse.json({ error: err?.message || 'Failed to seed Firebase data' }, { status: 500 });
   }
 }

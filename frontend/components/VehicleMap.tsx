@@ -144,13 +144,15 @@ export default function VehicleMap({ positions, fleetData, trails = {}, selected
     const map = mapRef.current;
     if (!map || fittedRef.current) return;
 
-    const entries = Object.values(positions);
-    if (entries.length === 0) return;
+    const validEntries = Object.values(positions).filter(
+      p => p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && !isNaN(p.latitude) && !isNaN(p.longitude) && (p.latitude !== 0 || p.longitude !== 0)
+    );
+    if (validEntries.length === 0) return;
 
-    if (entries.length === 1) {
-      map.setView([entries[0].latitude, entries[0].longitude], 14, { animate: true });
+    if (validEntries.length === 1) {
+      map.setView([validEntries[0].latitude, validEntries[0].longitude], 14, { animate: true });
     } else {
-      const bounds = L.latLngBounds(entries.map(p => [p.latitude, p.longitude]));
+      const bounds = L.latLngBounds(validEntries.map(p => [p.latitude, p.longitude]));
       map.fitBounds(bounds.pad(0.25), { animate: true });
     }
     fittedRef.current = true;
@@ -166,11 +168,20 @@ export default function VehicleMap({ positions, fleetData, trails = {}, selected
     const activeIds = new Set<number>();
 
     Object.values(positions).forEach((loc) => {
+      if (!loc) return;
+      const lat = Number(loc.latitude);
+      const lng = Number(loc.longitude);
+
+      // Guard: strictly ignore any missing, unparsed, or NaN coordinates
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+        return;
+      }
+
       activeIds.add(loc.fleetId);
       const vehicle = fleetData.find(f => f.id === loc.fleetId);
       const isLive  = Date.now() - loc.timestamp < 15_000;
       const icon    = createVehicleIcon(vehicle?.type ?? 'Car', isLive, loc.driverName);
-      const latLng: [number, number] = [loc.latitude, loc.longitude];
+      const latLng: [number, number] = [lat, lng];
 
       const popupContent = `
         <div style="min-width: 220px; font-family: 'Inter', sans-serif; padding: 2px;">
@@ -215,7 +226,7 @@ export default function VehicleMap({ positions, fleetData, trails = {}, selected
         </div>
       `;
 
-      // Update or create marker
+      // Update or create marker safely
       if (currentMarkers[loc.fleetId]) {
         const marker = currentMarkers[loc.fleetId];
         marker.setLatLng(latLng);
@@ -229,8 +240,11 @@ export default function VehicleMap({ positions, fleetData, trails = {}, selected
         currentMarkers[loc.fleetId] = marker;
       }
 
-      // Live Breadcrumb Trail for this vehicle
-      const vehicleTrail = trails[loc.fleetId] || [];
+      // Live Breadcrumb Trail for this vehicle (filtered for valid coordinates)
+      const rawTrail = trails[loc.fleetId] || [];
+      const vehicleTrail = rawTrail.filter(
+        pt => Array.isArray(pt) && Number.isFinite(pt[0]) && Number.isFinite(pt[1])
+      );
       if (vehicleTrail.length > 1) {
         if (currentPolylines[loc.fleetId]) {
           currentPolylines[loc.fleetId].setLatLngs(vehicleTrail);

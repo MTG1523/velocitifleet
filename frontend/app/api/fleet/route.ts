@@ -1,69 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { getFirebaseFleet, rtdbPut, FleetVehicle } from '@/lib/firebase-rtdb';
 
-export interface FleetItem {
-  id: string;
-  make: string;
-  model: string;
-  type: string;
-  registration: string;
-  status: string;
-  year: number;
-  dailyRate: number;
-  imageUrl: string;
-  createdAt: string;
-}
-
-function docToFleet(doc: FirebaseFirestore.DocumentSnapshot): FleetItem {
-  const d = doc.data()!;
-  return {
-    id:           doc.id,
-    make:         d.make,
-    model:        d.model,
-    type:         d.type,
-    registration: d.registration,
-    status:       d.status,
-    year:         d.year,
-    dailyRate:    d.dailyRate,
-    imageUrl:     d.imageUrl ?? '',
-    createdAt:    d.createdAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
-  };
-}
-
-/** GET /api/fleet — all vehicles */
+/** GET /api/fleet — all vehicles directly from Firebase Realtime Database */
 export async function GET() {
   try {
-    const db = getFirestore();
-    const snap = await db.collection('fleet').orderBy('createdAt', 'asc').get();
-    const items: FleetItem[] = snap.docs.map(docToFleet);
-    return NextResponse.json(items);
+    const fleet = await getFirebaseFleet();
+    return NextResponse.json(fleet);
   } catch (err) {
     console.error('[GET /api/fleet]', err);
-    return NextResponse.json({ error: 'Failed to fetch fleet' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch fleet from Firebase' }, { status: 500 });
   }
 }
 
-/** POST /api/fleet — create a vehicle */
+/** POST /api/fleet — create or update a vehicle directly in Firebase */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const db = getFirestore();
-    const ref = await db.collection('fleet').add({
-      make:         body.make,
-      model:        body.model,
-      type:         body.type,
-      registration: body.registration,
+    const existing = await getFirebaseFleet();
+    const nextId = body.id ? Number(body.id) : (existing.length > 0 ? Math.max(...existing.map(v => v.id)) + 1 : 1);
+
+    const vehicle: FleetVehicle = {
+      id:           nextId,
+      make:         body.make || 'Custom Luxury',
+      model:        body.model || 'Edition',
+      type:         body.type || 'Car',
+      registration: body.registration || `VF-00${nextId}`,
       status:       body.status ?? 'AVAILABLE',
-      year:         body.year ?? null,
-      dailyRate:    body.dailyRate ?? null,
+      year:         Number(body.year) || 2024,
+      dailyRate:    Number(body.dailyRate) || 120,
+      hourlyRate:   Number(body.hourlyRate) || 25,
+      fuelLevel:    Number(body.fuelLevel) || 100,
+      locationName: body.locationName || 'Chennai Headquarters',
       imageUrl:     body.imageUrl ?? '',
-      createdAt:    FieldValue.serverTimestamp(),
-    });
-    const created = await ref.get();
-    return NextResponse.json(docToFleet(created), { status: 201 });
+      createdAt:    new Date().toISOString(),
+    };
+
+    await rtdbPut(`fleet/${nextId}`, vehicle);
+    return NextResponse.json(vehicle, { status: 201 });
   } catch (err) {
     console.error('[POST /api/fleet]', err);
-    return NextResponse.json({ error: 'Failed to create vehicle' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create vehicle in Firebase' }, { status: 500 });
   }
 }
